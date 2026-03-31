@@ -1,13 +1,15 @@
 <template>
-	<view class="page">
+	<view :class="['page', themeClass, largeFontClass]">
 		<view class="card">
 			<text class="title">视障智能视觉辅助</text>
 			<text class="desc">说出“这是什么？”，系统将拍照识别并语音播报</text>
 
-			<button class="btn primary" @click="startVoiceTrigger" :disabled="loading">
-				{{ loading ? '识别中...' : '语音触发识别' }}
-			</button>
-			<button class="btn" @click="scanByDefaultCommand" :disabled="loading">直接拍照识别</button>
+			<view class="gesture-zone" @tap="onGestureTap" @longpress="onGestureLongPress">
+				<text class="gesture-title">手势操作区</text>
+				<text class="gesture-text">单击：{{ gestureActionLabel(settings.gestureSingleTap) }}</text>
+				<text class="gesture-text">双击：{{ gestureActionLabel(settings.gestureDoubleTap) }}</text>
+				<text class="gesture-text">长按：{{ gestureActionLabel(settings.gestureLongPress) }}</text>
+			</view>
 
 			<view class="result" v-if="result">
 				<text class="result-title">结构化播报结果</text>
@@ -31,10 +33,20 @@
 				<text class="debug-log" v-for="(log, idx) in debug.logs" :key="idx">{{ log }}</text>
 			</view>
 		</view>
+
+		<view class="bottom-actions">
+			<button class="action-btn primary" @click="startVoiceTrigger" :disabled="loading">
+				{{ loading ? '识别中' : '语音识别' }}
+			</button>
+			<button class="action-btn" @click="scanByDefaultCommand" :disabled="loading">直接拍照</button>
+			<button class="action-btn" @click="goUserCenter">用户中心</button>
+		</view>
 	</view>
 </template>
 
 <script>
+	import { loadUserSettings } from '../../utils/user-settings.js'
+
 	export default {
 		data() {
 			return {
@@ -42,6 +54,8 @@
 				result: null,
 				apiBase: 'http://10.135.102.177:8080',
 				audioPlayer: null,
+				singleTapTimer: null,
+				settings: loadUserSettings(),
 				debug: {
 					status: 'idle',
 					lastCommand: '',
@@ -50,6 +64,14 @@
 					lastError: '',
 					logs: []
 				}
+			}
+		},
+		computed: {
+			themeClass() {
+				return this.settings.contrastMode === 'black-yellow' ? 'theme-yellow' : 'theme-gold'
+			},
+			largeFontClass() {
+				return this.settings.extraLargeText ? 'font-large' : ''
 			}
 		},
 		onLoad() {
@@ -67,14 +89,93 @@
 				this.debug.status = 'spoken-cloud-failed'
 				this.setDebugError(`云端音频播放失败: ${JSON.stringify(err)}`)
 			})
+			this.ensureLoggedIn()
+			this.refreshSettings()
+		},
+		onShow() {
+			this.ensureLoggedIn()
+			this.refreshSettings()
 		},
 		onUnload() {
 			if (this.audioPlayer) {
 				this.audioPlayer.destroy()
 				this.audioPlayer = null
 			}
+			if (this.singleTapTimer) {
+				clearTimeout(this.singleTapTimer)
+				this.singleTapTimer = null
+			}
 		},
 		methods: {
+			refreshSettings() {
+				this.settings = loadUserSettings()
+			},
+			ensureLoggedIn() {
+				const user = uni.getStorageSync('auth_user')
+				if (!user || !user.id) {
+					uni.reLaunch({
+						url: '/pages/auth/auth'
+					})
+					return false
+				}
+				return true
+			},
+			gestureActionLabel(action) {
+				if (action === 'voice_trigger') return '语音触发识别'
+				if (action === 'direct_scan') return '直接拍照识别'
+				if (action === 'open_user_center') return '打开用户中心'
+				return '无动作'
+			},
+			onGestureTap() {
+				if (this.singleTapTimer) {
+					clearTimeout(this.singleTapTimer)
+					this.singleTapTimer = null
+					this.executeGestureAction(this.settings.gestureDoubleTap)
+					return
+				}
+				this.singleTapTimer = setTimeout(() => {
+					this.executeGestureAction(this.settings.gestureSingleTap)
+					this.singleTapTimer = null
+				}, 260)
+			},
+			onGestureLongPress() {
+				if (this.singleTapTimer) {
+					clearTimeout(this.singleTapTimer)
+					this.singleTapTimer = null
+				}
+				this.executeGestureAction(this.settings.gestureLongPress)
+			},
+			executeGestureAction(action) {
+				if (!this.ensureLoggedIn()) {
+					return
+				}
+				this.triggerHaptic()
+				if (action === 'voice_trigger') {
+					this.startVoiceTrigger()
+					return
+				}
+				if (action === 'direct_scan') {
+					this.scanByDefaultCommand()
+					return
+				}
+				if (action === 'open_user_center') {
+					this.goUserCenter()
+					return
+				}
+				this.pushDebugLog('手势动作：无操作')
+			},
+			triggerHaptic() {
+				if (this.settings.hapticLevel === 1) {
+					uni.vibrateShort()
+					return
+				}
+				if (this.settings.hapticLevel === 2) {
+					uni.vibrateShort()
+					setTimeout(() => uni.vibrateShort(), 180)
+					return
+				}
+				uni.vibrateLong()
+			},
 			pushDebugLog(message) {
 				const now = new Date()
 				const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
@@ -96,9 +197,13 @@
 				this.pushDebugLog('已清空调试日志')
 			},
 			startVoiceTrigger() {
+				if (!this.ensureLoggedIn()) {
+					return
+				}
 				if (this.loading) {
 					return
 				}
+				this.triggerHaptic()
 				const command = '这是什么？'
 				this.debug.status = 'voice-triggered'
 				this.debug.lastCommand = command
@@ -152,6 +257,10 @@
 				this.pickAndAnalyzeImage(normalized)
 			},
 			scanByDefaultCommand() {
+				if (!this.ensureLoggedIn()) {
+					return
+				}
+				this.triggerHaptic()
 				this.pickAndAnalyzeImage('这是什么？')
 			},
 			pickAndAnalyzeImage(command) {
@@ -217,7 +326,7 @@
 						this.debug.status = 'analyzed'
 						this.pushDebugLog('返回解析成功，准备语音播报')
 						try {
-							this.speak(data.narration || '识别完成')
+							this.speak(this.pickNarrationText(data))
 						} catch (e) {
 							this.debug.status = 'speak-failed'
 							this.setDebugError(`语音播报失败: ${e && e.message ? e.message : 'unknown'}`)
@@ -230,6 +339,17 @@
 						uni.showToast({ title: '识别请求失败，请确认后端已启动', icon: 'none' })
 					}
 				})
+			},
+			pickNarrationText(data) {
+				if (!data) {
+					return '识别完成'
+				}
+				if (this.settings.broadcastGranularity === 'concise') {
+					const firstItem = data.items && data.items.length ? data.items[0].name : '物体'
+					const scene = data.scene || '当前场景'
+					return `场景：${scene}。核心物品：${firstItem}。`
+				}
+				return data.narration || '识别完成'
 			},
 			speak(text) {
 				if (!text) {
@@ -261,6 +381,12 @@
 				if (typeof window !== 'undefined' && window.speechSynthesis) {
 					const utterance = new SpeechSynthesisUtterance(text)
 					utterance.lang = 'zh-CN'
+					utterance.rate = this.settings.speechRate
+					const voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : []
+					const target = voices.find(v => (v.name || '').toLowerCase().includes(this.settings.voiceTimbre.toLowerCase()))
+					if (target) {
+						utterance.voice = target
+					}
 					window.speechSynthesis.speak(utterance)
 					this.debug.status = 'spoken-web'
 					this.pushDebugLog('使用 Web Speech Synthesis 完成播报')
@@ -279,7 +405,8 @@
 						'Content-Type': 'application/json'
 					},
 					data: {
-						text
+						text,
+						voice: this.settings.voiceTimbre
 					},
 					success: (res) => {
 						if (res.statusCode !== 200 || !res.data || !res.data.audioUrl) {
@@ -304,7 +431,20 @@
 				this.debug.status = 'spoken-cloud-ready'
 				this.pushDebugLog('准备播放云端音频')
 				this.audioPlayer.src = url
+				if (typeof this.audioPlayer.playbackRate !== 'undefined') {
+					this.audioPlayer.playbackRate = this.settings.speechRate
+				}
 				this.audioPlayer.play()
+			},
+			goAuth() {
+				uni.navigateTo({
+					url: '/pages/auth/auth'
+				})
+			},
+			goUserCenter() {
+				uni.navigateTo({
+					url: '/pages/user-center/user-center'
+				})
 			}
 		}
 	}
@@ -314,69 +454,88 @@
 	.page {
 		min-height: 100vh;
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		justify-content: center;
-		background: #0e1116;
-		padding: 32rpx;
+		padding: 28rpx 28rpx 156rpx;
+	}
+
+	.theme-gold {
+		background: radial-gradient(140% 90% at 20% 0%, #182c45 0%, #090e16 66%);
+	}
+
+	.theme-yellow {
+		background: radial-gradient(140% 90% at 20% 0%, #2d250d 0%, #0b0b08 66%);
 	}
 
 	.card {
 		width: 100%;
 		max-width: 680rpx;
-		background: #171b22;
-		border: 2rpx solid #f8d76a;
 		border-radius: 20rpx;
-		padding: 28rpx;
+		padding: 30rpx;
 		box-sizing: border-box;
+		backdrop-filter: blur(10rpx);
+		box-shadow: var(--shadow-lg);
+	}
+
+	.theme-gold .card {
+		background: linear-gradient(160deg, rgba(18, 27, 43, 0.86), rgba(8, 15, 24, 0.85));
+		border: 2rpx solid rgba(255, 209, 102, 0.38);
+	}
+
+	.theme-yellow .card {
+		background: linear-gradient(160deg, rgba(23, 20, 10, 0.9), rgba(9, 9, 7, 0.88));
+		border: 2rpx solid rgba(255, 230, 0, 0.5);
 	}
 
 	.title {
 		display: block;
-		font-size: 44rpx;
-		color: #f8d76a;
+		font-size: 46rpx;
+		color: #f4f8ff;
 		font-weight: bold;
-		margin-bottom: 16rpx;
+		letter-spacing: 1rpx;
+		margin-bottom: 12rpx;
 	}
 
 	.desc {
 		display: block;
 		font-size: 28rpx;
-		color: #e8e8e8;
-		line-height: 1.6;
-		margin-bottom: 24rpx;
+		color: #a8bfd8;
+		line-height: 1.7;
+		margin-bottom: 20rpx;
 	}
 
 	.btn {
-		margin-bottom: 20rpx;
-		background: #2a2f3a;
-		color: #ffffff;
+		margin-bottom: 16rpx;
+		background: linear-gradient(145deg, #26374d, #1a2738);
+		color: #eaf3ff;
+		font-size: 28rpx;
 	}
 
 	.primary {
-		background: #f8d76a;
-		color: #111111;
+		background: linear-gradient(135deg, #62d0ff, #3ba5f5);
+		color: #0a1a2a;
 		font-weight: bold;
 	}
 
 	.result {
 		margin-top: 24rpx;
-		padding: 20rpx;
+		padding: 18rpx;
 		border-radius: 16rpx;
-		background: #10141b;
-		border: 2rpx solid #2e3644;
+		background: rgba(10, 18, 31, 0.76);
+		border: 2rpx solid rgba(108, 151, 205, 0.35);
 	}
 
 	.result-title {
 		display: block;
 		font-size: 30rpx;
-		color: #f8d76a;
+		color: #7cd3ff;
 		margin-bottom: 10rpx;
 	}
 
 	.line {
 		display: block;
 		font-size: 26rpx;
-		color: #e5e7eb;
+		color: #d7e5f7;
 		line-height: 1.6;
 		margin-bottom: 8rpx;
 	}
@@ -385,8 +544,8 @@
 		margin-top: 24rpx;
 		padding: 20rpx;
 		border-radius: 16rpx;
-		background: #0a0f14;
-		border: 2rpx dashed #3a4658;
+		background: rgba(6, 11, 18, 0.76);
+		border: 2rpx dashed rgba(116, 161, 220, 0.36);
 	}
 
 	.debug-head {
@@ -407,8 +566,8 @@
 		padding: 0 16rpx;
 		height: 52rpx;
 		line-height: 52rpx;
-		background: #233142;
-		color: #cfe8ff;
+		background: linear-gradient(145deg, #283f58, #203247);
+		color: #d5ebff;
 		margin: 0;
 	}
 
@@ -428,5 +587,77 @@
 		line-height: 1.5;
 		margin-top: 6rpx;
 		word-break: break-all;
+	}
+
+	.gesture-zone {
+		margin-top: 12rpx;
+		margin-bottom: 18rpx;
+		padding: 16rpx;
+		border: 2rpx dashed rgba(109, 159, 226, 0.46);
+		border-radius: 14rpx;
+		background: rgba(255, 255, 255, 0.04);
+	}
+
+	.gesture-title {
+		display: block;
+		color: #8bd3ff;
+		font-size: 26rpx;
+		font-weight: bold;
+		margin-bottom: 6rpx;
+	}
+
+	.gesture-text {
+		display: block;
+		color: #cde6fb;
+		font-size: 22rpx;
+		line-height: 1.6;
+	}
+
+	.font-large .title {
+		font-size: 54rpx;
+	}
+
+	.font-large .desc {
+		font-size: 34rpx;
+	}
+
+	.font-large .line,
+	.font-large .debug-line,
+	.font-large .debug-log,
+	.font-large .gesture-text {
+		font-size: 30rpx;
+	}
+
+	.bottom-actions {
+		position: fixed;
+		left: 20rpx;
+		right: 20rpx;
+		bottom: 18rpx;
+		display: flex;
+		gap: 12rpx;
+		padding: 14rpx;
+		border-radius: 18rpx;
+		background: rgba(8, 13, 21, 0.92);
+		border: 1px solid rgba(112, 150, 194, 0.42);
+		box-shadow: 0 14rpx 30rpx rgba(0, 0, 0, 0.45);
+		z-index: 30;
+	}
+
+	.action-btn {
+		flex: 1;
+		height: 78rpx;
+		line-height: 78rpx;
+		font-size: 24rpx;
+		margin: 0;
+		padding: 0;
+		background: linear-gradient(145deg, #2a3d53, #1f2e40);
+		color: #eef6ff;
+		border-radius: 12rpx;
+	}
+
+	.action-btn.primary {
+		background: linear-gradient(135deg, #62d0ff, #3caef5);
+		color: #081a2c;
+		font-weight: bold;
 	}
 </style>

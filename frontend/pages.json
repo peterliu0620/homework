@@ -3,7 +3,19 @@
 		{
 			"path": "pages/index/index",
 			"style": {
-				"navigationBarTitleText": "uni-app"
+				"navigationBarTitleText": "智能视觉辅助"
+			}
+		},
+		{
+			"path": "pages/auth/auth",
+			"style": {
+				"navigationBarTitleText": "用户登录注册"
+			}
+		},
+		{
+			"path": "pages/user-center/user-center",
+			"style": {
+				"navigationBarTitleText": "用户中心"
 			}
 		}
 	],
