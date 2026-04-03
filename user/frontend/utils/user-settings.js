@@ -7,7 +7,9 @@ export const DEFAULT_USER_SETTINGS = {
 	gestureLongPress: 'direct_scan',
 	hapticLevel: 2,
 	contrastMode: 'black-gold',
-	extraLargeText: false
+	extraLargeText: false,
+	findModeFeedbackIntervalMs: 2600,
+	findModeAutoStopSeconds: 90
 }
 
 export function loadUserSettings() {

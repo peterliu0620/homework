@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import com.example.demo.dto.VisionAnalyzeResponse;
+import com.example.demo.dto.TargetTrackResponse;
 import com.example.demo.service.VisionAnalyzeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -24,5 +25,13 @@ public class VisionController {
     public VisionAnalyzeResponse analyze(@RequestPart("image") MultipartFile image,
                                          @RequestParam(value = "command", required = false) String command) {
         return visionAnalyzeService.analyze(image, command);
+    }
+
+    @PostMapping(value = "/vision/find-target", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public TargetTrackResponse findTarget(@RequestPart("image") MultipartFile image,
+                                          @RequestParam("targetName") String targetName,
+                                          @RequestParam("sessionId") String sessionId,
+                                          @RequestParam("frameIndex") Integer frameIndex) {
+        return visionAnalyzeService.findTarget(image, targetName, sessionId, frameIndex);
     }
 }
