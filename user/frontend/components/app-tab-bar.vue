@@ -16,7 +16,7 @@
 </template>
 
 <script lang="ts">
-	import Vue from 'vue';
+	import { defineComponent } from 'vue';
 
 	interface TabBarItem {
 		key: string;
@@ -25,7 +25,7 @@
 		url: string;
 	}
 
-	export default Vue.extend({
+	export default defineComponent({
 		props: {
 			current: {
 				type: String,

@@ -150,7 +150,7 @@
 </template>
 
 <script lang="ts">
-	import Vue from 'vue';
+	import { defineComponent } from 'vue';
 	import { loadUserSettings, saveUserSettings } from '../../utils/user-settings';
 	import AppTabBar from '../../components/app-tab-bar.vue';
 	import type { AuthUser, BroadcastGranularity, ContrastMode, GestureAction, UserSettings } from '../../types/models';
@@ -160,7 +160,7 @@
 		value: T;
 	}
 
-	export default Vue.extend({
+	export default defineComponent({
 		components: {
 			AppTabBar
 		},

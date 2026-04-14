@@ -111,7 +111,7 @@
 </template>
 
 <script lang="ts">
-	import Vue from 'vue';
+	import { defineComponent } from 'vue';
 	import { loadUserSettings } from '../../utils/user-settings';
 	import AppTabBar from '../../components/app-tab-bar.vue';
 	import type { AuthUser, KnowledgeRecord, UserSettings } from '../../types/models';
@@ -123,7 +123,7 @@
 		records: KnowledgeRecord[];
 	}
 
-	export default Vue.extend({
+	export default defineComponent({
 		components: {
 			AppTabBar
 		},
@@ -138,7 +138,7 @@
 					lastAnswer: '',
 					records: []
 				} as KnowledgeState,
-				apiBase: 'http://10.69.65.44:8080'
+				apiBase: 'http://10.135.244.98:8080'
 			}
 		},
 		computed: {

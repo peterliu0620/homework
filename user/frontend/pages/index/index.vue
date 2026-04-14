@@ -242,7 +242,7 @@
 </template>
 
 <script lang="ts">
-	import Vue from 'vue';
+	import { defineComponent } from 'vue';
 	import { loadUserSettings } from '../../utils/user-settings';
 	import AppTabBar from '../../components/app-tab-bar.vue';
 	import type { AuthUser, GestureAction, UserSettings } from '../../types/models';
@@ -272,7 +272,7 @@
 		}
 	}
 
-	export default Vue.extend({
+	export default defineComponent({
 		components: {
 			AppTabBar
 		},
@@ -280,7 +280,7 @@
 			return {
 				loading: false,
 				result: null as any,
-				apiBase: 'http://10.69.65.44:8080',
+				apiBase: 'http://10.135.244.98:8080',
 				audioPlayer: null as any,
 				cameraContext: null as any,
 				singleTapTimer: null as ReturnType<typeof setTimeout> | null,

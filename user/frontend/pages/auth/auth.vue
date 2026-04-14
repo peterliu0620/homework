@@ -63,7 +63,7 @@
 </template>
 
 <script lang="ts">
-	import Vue from 'vue';
+	import { defineComponent } from 'vue';
 	import type { AuthUser } from '../../types/models';
 
 	interface AuthForm {
@@ -74,7 +74,7 @@
 		email: string;
 	}
 
-	export default Vue.extend({
+	export default defineComponent({
 		data() {
 			return {
 				apiBase: 'http://10.135.244.98:8080',
