@@ -28,6 +28,113 @@ class FamilySafetyAdminControllerTests {
     private JdbcTemplate jdbcTemplate;
 
     @Test
+    void shouldSupportFamilyMemberCrudBindingQueryAndUnbind() throws Exception {
+        String token = loginAndExtractToken();
+        jdbcTemplate.update("delete from medicine_profile");
+        jdbcTemplate.update("delete from family_binding");
+        jdbcTemplate.update("delete from family_member");
+        jdbcTemplate.update("delete from `user`");
+        jdbcTemplate.update("""
+                insert into `user`(id, username, password_hash, nickname, phone, email, status, created_at, updated_at)
+                values(101, 'blind-user-1', 'hash', '视障用户1', '13800138011', 'blind1@example.com', 1, now(), now())
+                """);
+        jdbcTemplate.update("""
+                insert into `user`(id, username, password_hash, nickname, phone, email, status, created_at, updated_at)
+                values(102, 'blind-user-2', 'hash', '视障用户2', '13800138012', 'blind2@example.com', 1, now(), now())
+                """);
+
+        String createResponse = mockMvc.perform(post("/api/admin/family-members")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "李家属",
+                                  "phone": "13900139011",
+                                  "email": "family1@example.com"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("李家属"))
+                .andExpect(jsonPath("$.data.bindingCount").value(0))
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        long familyMemberId = extractLongField(createResponse, "\"id\":");
+
+        mockMvc.perform(put("/api/admin/family-members/" + familyMemberId)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "李家属-更新",
+                                  "phone": "13900139012",
+                                  "email": "family1-updated@example.com"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.name").value("李家属-更新"))
+                .andExpect(jsonPath("$.data.phone").value("13900139012"));
+
+        mockMvc.perform(post("/api/admin/family-members/" + familyMemberId + "/bindings")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userId": 101,
+                                  "relationship": "女儿",
+                                  "status": "active"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.familyMemberId").value(familyMemberId))
+                .andExpect(jsonPath("$.data.userId").value(101))
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
+
+        mockMvc.perform(post("/api/admin/family-members/" + familyMemberId + "/bindings")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userId": 102,
+                                  "relationship": "监护人"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userId").value(102));
+
+        mockMvc.perform(get("/api/admin/family-members")
+                        .header("Authorization", "Bearer " + token)
+                        .param("keyword", "李家属"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].bindingCount").value(2));
+
+        mockMvc.perform(get("/api/admin/family-members/" + familyMemberId + "/blind-users")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].familyName").value("李家属-更新"));
+
+        mockMvc.perform(get("/api/admin/blind-users/101/family-members")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].userId").value(101));
+
+        mockMvc.perform(delete("/api/admin/family-members/" + familyMemberId + "/bindings/101")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(true));
+
+        mockMvc.perform(get("/api/admin/family-members/" + familyMemberId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.bindingCount").value(1));
+
+        mockMvc.perform(delete("/api/admin/family-members/" + familyMemberId)
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").value(true));
+    }
+
+    @Test
     void shouldSupportFamilyBindingMedicineCrudAndSharedLogs() throws Exception {
         String token = loginAndExtractToken();
         jdbcTemplate.update("""
@@ -141,5 +248,15 @@ class FamilySafetyAdminControllerTests {
         int from = start + 9;
         int end = response.indexOf('"', from);
         return response.substring(from, end);
+    }
+
+    private long extractLongField(String response, String marker) {
+        int start = response.indexOf(marker);
+        int from = start + marker.length();
+        int end = from;
+        while (end < response.length() && Character.isDigit(response.charAt(end))) {
+            end++;
+        }
+        return Long.parseLong(response.substring(from, end));
     }
 }

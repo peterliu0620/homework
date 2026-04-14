@@ -20,6 +20,24 @@ import java.util.Map;
 public interface FamilySafetyAdminMapper {
 
     @Select("""
+            <script>
+            select fm.id, fm.name, fm.phone, fm.email, fm.created_at, fm.updated_at
+            from family_member fm
+            <where>
+                <if test="keyword != null and keyword != ''">
+                    (
+                        fm.name like concat('%', #{keyword}, '%')
+                        or fm.phone like concat('%', #{keyword}, '%')
+                        or fm.email like concat('%', #{keyword}, '%')
+                    )
+                </if>
+            </where>
+            order by fm.updated_at desc, fm.id desc
+            </script>
+            """)
+    List<FamilyMember> findFamilyMembers(@Param("keyword") String keyword);
+
+    @Select("""
             select fm.id, fm.name, fm.phone, fm.email, fm.created_at, fm.updated_at
             from family_member fm
             where lower(fm.name) = lower(#{name})
@@ -42,6 +60,44 @@ public interface FamilySafetyAdminMapper {
             """)
     @Options(useGeneratedKeys = true, keyProperty = "id")
     int insertFamilyMember(FamilyMember familyMember);
+
+    @Update("""
+            update family_member
+            set name = #{name},
+                phone = #{phone},
+                email = #{email},
+                updated_at = now()
+            where id = #{id}
+            """)
+    int updateFamilyMember(FamilyMember familyMember);
+
+    @Delete("delete from family_member where id = #{id}")
+    int deleteFamilyMember(@Param("id") Long id);
+
+    @Delete("delete from family_binding where family_member_id = #{familyMemberId}")
+    int deleteBindingsByFamilyMemberId(@Param("familyMemberId") Long familyMemberId);
+
+    @Update("update medicine_profile set family_member_id = null, updated_at = now() where family_member_id = #{familyMemberId}")
+    int clearMedicineProfileFamilyMember(@Param("familyMemberId") Long familyMemberId);
+
+    @Select("""
+            select count(1)
+            from family_member
+            where phone = #{phone}
+              and (#{excludeId} is null or id <> #{excludeId})
+            """)
+    int countFamilyMemberByPhone(@Param("phone") String phone, @Param("excludeId") Long excludeId);
+
+    @Select("""
+            select count(1)
+            from family_member
+            where email = #{email}
+              and (#{excludeId} is null or id <> #{excludeId})
+            """)
+    int countFamilyMemberByEmail(@Param("email") String email, @Param("excludeId") Long excludeId);
+
+    @Select("select count(1) from family_binding where family_member_id = #{familyMemberId}")
+    Long countBindingsByFamilyMemberId(@Param("familyMemberId") Long familyMemberId);
 
     @Select("""
             select count(1)
@@ -88,6 +144,53 @@ public interface FamilySafetyAdminMapper {
             </script>
             """)
     List<Map<String, Object>> findBindings(@Param("keyword") String keyword);
+
+    @Select("""
+            select fb.id,
+                   fb.family_member_id,
+                   fm.name as family_name,
+                   fm.phone as family_phone,
+                   fm.email as family_email,
+                   fb.user_id,
+                   u.username,
+                   u.nickname,
+                   fb.relationship,
+                   fb.status,
+                   fb.created_at
+            from family_binding fb
+            join family_member fm on fm.id = fb.family_member_id
+            join `user` u on u.id = fb.user_id
+            where fb.family_member_id = #{familyMemberId}
+            order by fb.created_at desc, fb.id desc
+            """)
+    List<Map<String, Object>> findBindingsByFamilyMemberId(@Param("familyMemberId") Long familyMemberId);
+
+    @Select("""
+            select fb.id,
+                   fb.family_member_id,
+                   fm.name as family_name,
+                   fm.phone as family_phone,
+                   fm.email as family_email,
+                   fb.user_id,
+                   u.username,
+                   u.nickname,
+                   fb.relationship,
+                   fb.status,
+                   fb.created_at
+            from family_binding fb
+            join family_member fm on fm.id = fb.family_member_id
+            join `user` u on u.id = fb.user_id
+            where fb.user_id = #{userId}
+            order by fb.created_at desc, fb.id desc
+            """)
+    List<Map<String, Object>> findBindingsByUserId(@Param("userId") Long userId);
+
+    @Delete("""
+            delete from family_binding
+            where family_member_id = #{familyMemberId}
+              and user_id = #{userId}
+            """)
+    int deleteBinding(@Param("familyMemberId") Long familyMemberId, @Param("userId") Long userId);
 
     @Select("select id, username, password_hash, nickname, phone, email, status, last_login_at, created_at, updated_at from `user` where id = #{id} limit 1")
     AppUser findUserById(@Param("id") Long id);

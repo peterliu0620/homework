@@ -2,6 +2,9 @@ package com.example.admin.service;
 
 import com.example.admin.dto.FamilyBindingCreateRequest;
 import com.example.admin.dto.FamilyBindingResponse;
+import com.example.admin.dto.FamilyMemberBindingRequest;
+import com.example.admin.dto.FamilyMemberRequest;
+import com.example.admin.dto.FamilyMemberResponse;
 import com.example.admin.dto.MedicineProfileRequest;
 import com.example.admin.dto.MedicineProfileResponse;
 import com.example.admin.dto.SharedLogResponse;
@@ -29,6 +32,53 @@ public class FamilySafetyAdminService {
 
     private final FamilySafetyAdminMapper mapper;
 
+    public List<FamilyMemberResponse> listFamilyMembers(String keyword) {
+        return mapper.findFamilyMembers(StringValueUtils.trimToNull(keyword)).stream()
+                .map(this::toFamilyMemberResponse)
+                .toList();
+    }
+
+    public FamilyMemberResponse getFamilyMember(Long id) {
+        return toFamilyMemberResponse(requireFamilyMember(id));
+    }
+
+    @Transactional
+    public FamilyMemberResponse createFamilyMember(FamilyMemberRequest request) {
+        String name = request.getName().trim();
+        String phone = StringValueUtils.trimToNull(request.getPhone());
+        String email = StringValueUtils.trimToNull(request.getEmail());
+        validateFamilyMemberUnique(phone, email, null);
+
+        FamilyMember familyMember = new FamilyMember();
+        familyMember.setName(name);
+        familyMember.setPhone(phone);
+        familyMember.setEmail(email);
+        mapper.insertFamilyMember(familyMember);
+        return toFamilyMemberResponse(requireFamilyMember(familyMember.getId()));
+    }
+
+    @Transactional
+    public FamilyMemberResponse updateFamilyMember(Long id, FamilyMemberRequest request) {
+        FamilyMember familyMember = requireFamilyMember(id);
+        String phone = StringValueUtils.trimToNull(request.getPhone());
+        String email = StringValueUtils.trimToNull(request.getEmail());
+        validateFamilyMemberUnique(phone, email, id);
+
+        familyMember.setName(request.getName().trim());
+        familyMember.setPhone(phone);
+        familyMember.setEmail(email);
+        mapper.updateFamilyMember(familyMember);
+        return toFamilyMemberResponse(requireFamilyMember(id));
+    }
+
+    @Transactional
+    public void deleteFamilyMember(Long id) {
+        requireFamilyMember(id);
+        mapper.clearMedicineProfileFamilyMember(id);
+        mapper.deleteBindingsByFamilyMemberId(id);
+        mapper.deleteFamilyMember(id);
+    }
+
     public List<FamilyBindingResponse> listBindings(String keyword) {
         return mapper.findBindings(StringValueUtils.trimToNull(keyword)).stream().map(this::toBindingResponse).toList();
     }
@@ -37,31 +87,33 @@ public class FamilySafetyAdminService {
     public FamilyBindingResponse createBinding(FamilyBindingCreateRequest request) {
         AppUser user = requireUser(request.getUserId());
         FamilyMember familyMember = resolveFamilyMember(request);
-        if (mapper.countBinding(familyMember.getId(), user.getId()) > 0) {
-            throw new IllegalArgumentException("该家属与用户已存在绑定关系");
+        return createBindingInternal(familyMember, user, request.getRelationship(), request.getStatus());
+    }
+
+    public List<FamilyBindingResponse> listBindingsByFamilyMember(Long familyMemberId) {
+        requireFamilyMember(familyMemberId);
+        return mapper.findBindingsByFamilyMemberId(familyMemberId).stream().map(this::toBindingResponse).toList();
+    }
+
+    public List<FamilyBindingResponse> listBindingsByUser(Long userId) {
+        requireUser(userId);
+        return mapper.findBindingsByUserId(userId).stream().map(this::toBindingResponse).toList();
+    }
+
+    @Transactional
+    public FamilyBindingResponse createBinding(Long familyMemberId, FamilyMemberBindingRequest request) {
+        FamilyMember familyMember = requireFamilyMember(familyMemberId);
+        AppUser user = requireUser(request.getUserId());
+        return createBindingInternal(familyMember, user, request.getRelationship(), request.getStatus());
+    }
+
+    @Transactional
+    public void deleteBinding(Long familyMemberId, Long userId) {
+        requireFamilyMember(familyMemberId);
+        requireUser(userId);
+        if (mapper.deleteBinding(familyMemberId, userId) == 0) {
+            throw new IllegalArgumentException("绑定关系不存在");
         }
-
-        FamilyBinding binding = new FamilyBinding();
-        binding.setFamilyMemberId(familyMember.getId());
-        binding.setUserId(user.getId());
-        binding.setRelationship(request.getRelationship().trim());
-        binding.setStatus(normalizeStatus(request.getStatus()));
-        binding.setCreatedAt(LocalDateTime.now());
-        mapper.insertBinding(binding);
-
-        return new FamilyBindingResponse(
-                binding.getId(),
-                familyMember.getId(),
-                familyMember.getName(),
-                familyMember.getPhone(),
-                familyMember.getEmail(),
-                user.getId(),
-                user.getUsername(),
-                user.getNickname(),
-                binding.getRelationship(),
-                binding.getStatus(),
-                binding.getCreatedAt()
-        );
     }
 
     public List<MedicineProfileResponse> listMedicineProfiles(Long userId, Long familyMemberId, String keyword) {
@@ -115,11 +167,7 @@ public class FamilySafetyAdminService {
 
     private FamilyMember resolveFamilyMember(FamilyBindingCreateRequest request) {
         if (request.getFamilyMemberId() != null) {
-            FamilyMember byId = mapper.findFamilyMemberById(request.getFamilyMemberId());
-            if (byId == null) {
-                throw new IllegalArgumentException("家属账号不存在");
-            }
-            return byId;
+            return requireFamilyMember(request.getFamilyMemberId());
         }
         String name = StringValueUtils.trimToNull(request.getFamilyName());
         if (name == null) {
@@ -135,8 +183,37 @@ public class FamilySafetyAdminService {
         familyMember.setName(name);
         familyMember.setPhone(phone);
         familyMember.setEmail(StringValueUtils.trimToNull(request.getFamilyEmail()));
+        validateFamilyMemberUnique(familyMember.getPhone(), familyMember.getEmail(), null);
         mapper.insertFamilyMember(familyMember);
         return familyMember;
+    }
+
+    private FamilyBindingResponse createBindingInternal(FamilyMember familyMember, AppUser user, String relationship, String status) {
+        if (mapper.countBinding(familyMember.getId(), user.getId()) > 0) {
+            throw new IllegalArgumentException("该家属与用户已存在绑定关系");
+        }
+
+        FamilyBinding binding = new FamilyBinding();
+        binding.setFamilyMemberId(familyMember.getId());
+        binding.setUserId(user.getId());
+        binding.setRelationship(relationship.trim());
+        binding.setStatus(normalizeStatus(status));
+        binding.setCreatedAt(LocalDateTime.now());
+        mapper.insertBinding(binding);
+
+        return new FamilyBindingResponse(
+                binding.getId(),
+                familyMember.getId(),
+                familyMember.getName(),
+                familyMember.getPhone(),
+                familyMember.getEmail(),
+                user.getId(),
+                user.getUsername(),
+                user.getNickname(),
+                binding.getRelationship(),
+                binding.getStatus(),
+                binding.getCreatedAt()
+        );
     }
 
     private AppUser requireUser(Long userId) {
@@ -145,6 +222,14 @@ public class FamilySafetyAdminService {
             throw new IllegalArgumentException("用户不存在");
         }
         return user;
+    }
+
+    private FamilyMember requireFamilyMember(Long id) {
+        FamilyMember familyMember = mapper.findFamilyMemberById(id);
+        if (familyMember == null) {
+            throw new IllegalArgumentException("家属账号不存在");
+        }
+        return familyMember;
     }
 
     private MedicineProfile requireMedicineProfile(Long id) {
@@ -227,6 +312,28 @@ public class FamilySafetyAdminService {
     private String normalizeStatus(String status) {
         String normalized = StringValueUtils.trimToNull(status);
         return normalized == null ? "ACTIVE" : normalized.toUpperCase();
+    }
+
+    private void validateFamilyMemberUnique(String phone, String email, Long excludeId) {
+        if (phone != null && mapper.countFamilyMemberByPhone(phone, excludeId) > 0) {
+            throw new IllegalArgumentException("家属手机号已存在");
+        }
+        if (email != null && mapper.countFamilyMemberByEmail(email, excludeId) > 0) {
+            throw new IllegalArgumentException("家属邮箱已存在");
+        }
+    }
+
+    private FamilyMemberResponse toFamilyMemberResponse(FamilyMember familyMember) {
+        Long bindingCount = mapper.countBindingsByFamilyMemberId(familyMember.getId());
+        return new FamilyMemberResponse(
+                familyMember.getId(),
+                familyMember.getName(),
+                familyMember.getPhone(),
+                familyMember.getEmail(),
+                bindingCount == null ? 0L : bindingCount,
+                familyMember.getCreatedAt(),
+                familyMember.getUpdatedAt()
+        );
     }
 
     private Long asLong(Object value) {

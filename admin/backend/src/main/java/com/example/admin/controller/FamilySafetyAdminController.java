@@ -2,6 +2,8 @@ package com.example.admin.controller;
 
 import com.example.admin.dto.FamilyBindingCreateRequest;
 import com.example.admin.dto.MedicineProfileRequest;
+import com.example.admin.dto.FamilyMemberBindingRequest;
+import com.example.admin.dto.FamilyMemberRequest;
 import com.example.admin.service.FamilySafetyAdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +27,53 @@ import java.util.Map;
 public class FamilySafetyAdminController {
 
     private final FamilySafetyAdminService familySafetyAdminService;
+
+    @GetMapping("/family-members")
+    public Map<String, Object> listFamilyMembers(@RequestParam(required = false) String keyword) {
+        return Map.of("success", true, "data", familySafetyAdminService.listFamilyMembers(keyword));
+    }
+
+    @GetMapping("/family-members/{id}")
+    public Map<String, Object> getFamilyMember(@PathVariable Long id) {
+        return Map.of("success", true, "data", familySafetyAdminService.getFamilyMember(id));
+    }
+
+    @PostMapping("/family-members")
+    public Map<String, Object> createFamilyMember(@Valid @RequestBody FamilyMemberRequest request) {
+        return Map.of("success", true, "data", familySafetyAdminService.createFamilyMember(request));
+    }
+
+    @PutMapping("/family-members/{id}")
+    public Map<String, Object> updateFamilyMember(@PathVariable Long id, @Valid @RequestBody FamilyMemberRequest request) {
+        return Map.of("success", true, "data", familySafetyAdminService.updateFamilyMember(id, request));
+    }
+
+    @DeleteMapping("/family-members/{id}")
+    public Map<String, Object> deleteFamilyMember(@PathVariable Long id) {
+        familySafetyAdminService.deleteFamilyMember(id);
+        return Map.of("success", true, "data", true);
+    }
+
+    @GetMapping("/family-members/{id}/blind-users")
+    public Map<String, Object> listBlindUsers(@PathVariable Long id) {
+        return Map.of("success", true, "data", familySafetyAdminService.listBindingsByFamilyMember(id));
+    }
+
+    @PostMapping("/family-members/{id}/bindings")
+    public Map<String, Object> bindBlindUser(@PathVariable Long id, @Valid @RequestBody FamilyMemberBindingRequest request) {
+        return Map.of("success", true, "data", familySafetyAdminService.createBinding(id, request));
+    }
+
+    @DeleteMapping("/family-members/{id}/bindings/{blindUserId}")
+    public Map<String, Object> deleteBinding(@PathVariable Long id, @PathVariable Long blindUserId) {
+        familySafetyAdminService.deleteBinding(id, blindUserId);
+        return Map.of("success", true, "data", true);
+    }
+
+    @GetMapping("/blind-users/{id}/family-members")
+    public Map<String, Object> listFamilyMembersByBlindUser(@PathVariable Long id) {
+        return Map.of("success", true, "data", familySafetyAdminService.listBindingsByUser(id));
+    }
 
     @GetMapping("/family-bindings")
     public Map<String, Object> listBindings(@RequestParam(required = false) String keyword) {
