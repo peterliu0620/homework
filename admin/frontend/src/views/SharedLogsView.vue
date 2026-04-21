@@ -2,19 +2,31 @@
   <div class="ops-page">
     <section class="hero logs-hero">
       <div>
-        <div class="hero-kicker">SHARED LIFE LOGS</div>
+        <div class="hero-kicker">共享日志摘要</div>
         <h2>家属只看核心摘要，不暴露全部识别细节，但关键风险一眼就能看见。</h2>
         <p>支持按家属、用户、模式过滤，重点关注药品识别、地点摘要、寻物频次和安全预警。</p>
+        <div class="inline-summary">
+          <div class="summary-pill">当前摘要 <strong>{{ logs.length }}</strong> 条</div>
+          <div class="summary-pill">药品相关 <strong>{{ medicineCount }}</strong> 条</div>
+          <div class="summary-pill">预警 <strong>{{ alertCount }}</strong> 次</div>
+        </div>
       </div>
-      <div class="filters">
-        <a-input-number v-model:value="filters.familyMemberId" :min="1" placeholder="家属 ID" style="width: 100%" />
-        <a-input-number v-model:value="filters.userId" :min="1" placeholder="用户 ID（可选）" style="width: 100%" />
-        <a-select v-model:value="filters.mode" allow-clear placeholder="操作类型">
-          <a-select-option value="analyze">识别</a-select-option>
-          <a-select-option value="find-target">寻物</a-select-option>
-        </a-select>
-        <a-date-picker v-model:value="filters.date" value-format="YYYY-MM-DD" style="width: 100%" />
-        <a-button type="primary" size="large" @click="loadLogs">查询摘要</a-button>
+      <div class="toolbar-stack">
+        <div class="filter-grid filter-grid-compact">
+          <a-input-number v-model:value="filters.familyMemberId" :min="1" placeholder="家属 ID" style="width: 100%" />
+          <a-input-number v-model:value="filters.userId" :min="1" placeholder="用户 ID（可选）" style="width: 100%" />
+          <a-select v-model:value="filters.mode" allow-clear placeholder="操作类型">
+            <a-select-option value="analyze">识别</a-select-option>
+            <a-select-option value="find-target">寻物</a-select-option>
+          </a-select>
+        </div>
+        <div class="filter-grid">
+          <a-date-picker v-model:value="filters.date" value-format="YYYY-MM-DD" style="width: 100%" />
+          <div class="action-cluster">
+            <a-button size="large" @click="resetFilters">重置筛选</a-button>
+            <a-button type="primary" size="large" @click="loadLogs">查询摘要</a-button>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -43,6 +55,12 @@
           <a-tag color="green">共 {{ logs.length }} 条</a-tag>
         </div>
       </template>
+      <div class="table-toolbar">
+        <div class="table-note">日志只保留摘要信息，便于家属和管理员快速查看关键记录与风险提醒。</div>
+        <div class="table-toolbar-meta">
+          <a-tag color="blue">已生效筛选 {{ activeFilterCount }} 项</a-tag>
+        </div>
+      </div>
       <a-table
         row-key="recordId"
         :loading="loading"
@@ -59,7 +77,7 @@
             </div>
           </template>
           <template v-else-if="column.key === 'mode'">
-            <a-tag :color="record.mode === 'find-target' ? 'geekblue' : 'cyan'">{{ record.mode }}</a-tag>
+            <a-tag :color="record.mode === 'find-target' ? 'geekblue' : 'cyan'">{{ record.mode === 'find-target' ? '寻物' : '识别' }}</a-tag>
           </template>
           <template v-else-if="column.key === 'coreItem'">
             <div>
@@ -68,12 +86,23 @@
             </div>
           </template>
           <template v-else-if="column.key === 'alert'">
-            <a-tag v-if="record.alertTriggered" color="red">{{ record.alertType || 'alert' }}</a-tag>
+            <a-tag v-if="record.alertTriggered" color="red">{{ record.alertType || '预警' }}</a-tag>
             <span v-else class="muted">无</span>
           </template>
           <template v-else-if="column.key === 'capturedAt'">
             <span class="muted">{{ formatDateTime(record.capturedAt) }}</span>
           </template>
+        </template>
+        <template #emptyText>
+          <div class="table-empty">
+            <div class="empty-orb">L</div>
+            <div class="empty-title">没有匹配的日志摘要</div>
+            <div class="empty-desc">请调整家属、用户、模式或日期条件后重新查询。</div>
+            <div class="empty-actions">
+              <a-button @click="resetFilters">重置筛选</a-button>
+              <a-button type="primary" @click="loadLogs">重新查询</a-button>
+            </div>
+          </div>
         </template>
       </a-table>
     </a-card>
@@ -116,6 +145,9 @@ const columns: TableColumnsType<SharedLog> = [
 
 const alertCount = computed(() => logs.value.filter((item) => item.alertTriggered).length);
 const medicineCount = computed(() => logs.value.filter((item) => /药|胶囊|片/.test(item.coreItem || '')).length);
+const activeFilterCount = computed(() => {
+	return [filters.familyMemberId, filters.userId, filters.mode, filters.date].filter(Boolean).length;
+});
 
 loadLogs();
 
@@ -142,12 +174,22 @@ function buildFilters(): SharedLogFilters {
     date: filters.date
   };
 }
+
+function resetFilters() {
+	filters.familyMemberId = 1;
+	filters.userId = null;
+	filters.mode = undefined;
+	filters.date = undefined;
+	loadLogs();
+}
 </script>
 
 <style scoped>
 @import '@/styles/ops-surface.css';
 
 .logs-hero {
-	background: linear-gradient(135deg, #12362f, #146c5c 56%, #0f766e 100%);
+	background:
+		radial-gradient(circle at right top, rgba(127, 183, 255, 0.18), transparent 28%),
+		linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(239, 246, 255, 0.92) 56%, rgba(232, 243, 255, 0.84) 100%);
 }
 </style>

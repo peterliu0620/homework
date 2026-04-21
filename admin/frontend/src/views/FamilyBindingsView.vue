@@ -2,11 +2,16 @@
   <div class="ops-page">
     <section class="hero">
       <div>
-        <div class="hero-kicker">FAMILY BRIDGE</div>
+        <div class="hero-kicker">家属绑定管理</div>
         <h2>管理员先把家属资料建好，再把多个视障人士绑定进来。</h2>
         <p>这一页同时处理家属资料、绑定关系和解绑操作，让“一个家属对应多个视障人士、一个视障人士对应多个家属”的协同路径一次跑通。</p>
+        <div class="inline-summary">
+          <div class="summary-pill">家属 <strong>{{ familyMembers.length }}</strong> 位</div>
+          <div class="summary-pill">绑定 <strong>{{ bindings.length }}</strong> 条</div>
+          <div class="summary-pill">覆盖用户 <strong>{{ coveredBlindUserCount }}</strong> 人</div>
+        </div>
       </div>
-      <div class="hero-actions">
+      <div class="toolbar-stack">
         <a-input-search
           v-model:value="keyword"
           placeholder="搜索家属姓名 / 手机 / 用户名"
@@ -14,8 +19,11 @@
           enter-button="搜索"
           @search="loadAll"
         />
-        <a-button size="large" @click="resetSearch">重置</a-button>
-        <a-button type="primary" size="large" @click="openFamilyModal()">新增家属</a-button>
+        <div class="action-cluster">
+          <a-button size="large" @click="resetSearch">重置筛选</a-button>
+          <a-button type="primary" size="large" @click="openFamilyModal()">新增家属</a-button>
+          <a-button size="large" @click="openBindingModal()">新增绑定</a-button>
+        </div>
       </div>
     </section>
 
@@ -44,6 +52,12 @@
           <a-tag color="cyan">共 {{ familyMembers.length }} 位</a-tag>
         </div>
       </template>
+      <div class="table-toolbar">
+        <div class="table-note">先维护家属基础信息，再查看或建立与视障用户的绑定关系。</div>
+        <div class="table-toolbar-meta">
+          <a-tag color="blue">最近检索 {{ keyword ? '已生效' : '未设置' }}</a-tag>
+        </div>
+      </div>
       <a-table
         row-key="id"
         :loading="loading"
@@ -82,6 +96,17 @@
             </div>
           </template>
         </template>
+        <template #emptyText>
+          <div class="table-empty">
+            <div class="empty-orb">F</div>
+            <div class="empty-title">还没有家属资料</div>
+            <div class="empty-desc">可以先新增家属，随后再建立与视障用户的绑定关系。</div>
+            <div class="empty-actions">
+              <a-button @click="resetSearch">重置筛选</a-button>
+              <a-button type="primary" @click="openFamilyModal()">新增家属</a-button>
+            </div>
+          </div>
+        </template>
       </a-table>
     </a-card>
 
@@ -95,6 +120,12 @@
           <a-button type="primary" @click="openBindingModal()">新增绑定</a-button>
         </div>
       </template>
+      <div class="table-toolbar">
+        <div class="table-note">绑定关系按家属与用户两侧同步展示，便于核对协同覆盖情况。</div>
+        <div class="table-toolbar-meta">
+          <a-tag color="green">有效绑定 {{ activeBindingCount }}</a-tag>
+        </div>
+      </div>
       <a-table
         row-key="id"
         :loading="loading"
@@ -116,11 +147,22 @@
             </div>
           </template>
           <template v-else-if="column.key === 'status'">
-            <a-tag :color="record.status === 'ACTIVE' ? 'green' : 'orange'">{{ record.status }}</a-tag>
+            <a-tag :color="record.status === 'ACTIVE' ? 'green' : 'orange'">{{ record.status === 'ACTIVE' ? '正常' : '已停用' }}</a-tag>
           </template>
           <template v-else-if="column.key === 'createdAt'">
             <span class="muted">{{ formatDateTime(record.createdAt) }}</span>
           </template>
+        </template>
+        <template #emptyText>
+          <div class="table-empty">
+            <div class="empty-orb">B</div>
+            <div class="empty-title">还没有绑定关系</div>
+            <div class="empty-desc">先新增家属，或者直接创建一条新的绑定关系。</div>
+            <div class="empty-actions">
+              <a-button @click="openFamilyModal()">新增家属</a-button>
+              <a-button type="primary" @click="openBindingModal()">新增绑定</a-button>
+            </div>
+          </div>
         </template>
       </a-table>
     </a-card>
@@ -210,11 +252,15 @@
                 <span class="strong">{{ item.nickname }}</span>
               </template>
             </a-list-item-meta>
-            <a-tag :color="item.status === 'ACTIVE' ? 'green' : 'orange'">{{ item.status }}</a-tag>
+            <a-tag :color="item.status === 'ACTIVE' ? 'green' : 'orange'">{{ item.status === 'ACTIVE' ? '正常' : '已停用' }}</a-tag>
           </a-list-item>
         </template>
         <template #locale-empty-text>
-          还没有绑定视障人士
+          <div class="table-empty drawer-empty">
+            <div class="empty-orb">B</div>
+            <div class="empty-title">还没有绑定视障人士</div>
+            <div class="empty-desc">可以直接从当前抽屉为这位家属新增绑定关系。</div>
+          </div>
         </template>
       </a-list>
     </a-drawer>
@@ -309,6 +355,7 @@ const bindingColumns: TableColumnsType<FamilyBinding> = [
 ];
 
 const coveredBlindUserCount = computed(() => new Set(bindings.value.map((item) => item.userId)).size);
+const activeBindingCount = computed(() => bindings.value.filter((item) => item.status === 'ACTIVE').length);
 
 const familyMemberOptions = computed<SelectProps['options']>(() =>
   familyMembers.value.map((item) => ({
@@ -504,7 +551,9 @@ function filterOption(input: string, option?: { label?: string | number }) {
 @import '@/styles/ops-surface.css';
 
 .hero {
-  background: linear-gradient(135deg, #102542, #1a4b7a 56%, #0f766e 100%);
+  background:
+    radial-gradient(circle at right top, rgba(132, 186, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(239, 246, 255, 0.92) 56%, rgba(232, 243, 255, 0.84) 100%);
 }
 
 .surface-card :deep(.ant-card-body) {

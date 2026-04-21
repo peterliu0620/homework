@@ -19,12 +19,6 @@
 			}
 		},
 		{
-			"path": "pages/knowledge/knowledge",
-			"style": {
-				"navigationBarTitleText": "智能知识库"
-			}
-		},
-		{
 			"path": "pages/family-center/family-center",
 			"style": {
 				"navigationBarTitleText": "家属中心"

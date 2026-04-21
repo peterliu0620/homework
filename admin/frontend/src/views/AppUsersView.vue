@@ -2,10 +2,10 @@
 	<div class="user-page">
 		<section class="toolbar-panel">
 			<div>
-				<div class="hero-kicker">APP USER OPS</div>
+				<div class="hero-kicker">应用用户管理</div>
 				<h2>集中管理应用端用户。</h2>
 				<p>
-					支持管理员对 app 用户进行查询、新增、编辑、删除，并直接控制账号启用状态。
+					支持管理员对应用用户进行查询、新增、编辑、删除，并直接控制账号启用状态。
 				</p>
 				<div class="toolbar-insights">
 					<div class="insight-pill">
@@ -22,34 +22,56 @@
 					</div>
 				</div>
 			</div>
-			<div class="toolbar-actions">
-				<a-input-search
-					v-model:value="keyword"
-					class="search-box"
-					placeholder="搜索用户名 / 昵称 / 手机号 / 邮箱"
-					allow-clear
-					enter-button="搜索"
-					@search="loadUsers"
-				/>
-				<a-button size="large" @click="resetSearch">重置</a-button>
-				<a-button type="primary" size="large" @click="openCreateModal">新增用户</a-button>
+			<div class="toolbar-stack">
+				<div class="filter-grid">
+					<a-input-search
+						v-model:value="keyword"
+						class="search-box"
+						placeholder="搜索用户名 / 昵称 / 手机号 / 邮箱"
+						allow-clear
+						enter-button="搜索"
+						@search="loadUsers"
+					/>
+					<a-select
+						v-model:value="statusFilter"
+						size="large"
+						:options="statusOptions"
+						placeholder="按状态筛选"
+					/>
+				</div>
+				<div class="inline-summary">
+					<div class="summary-pill">
+						当前显示
+						<strong>{{ displayedUsers.length }}</strong>
+						人
+					</div>
+					<div class="summary-pill">
+						最近登录
+						<strong>{{ displayedLoggedInCount }}</strong>
+						人
+					</div>
+				</div>
+				<div class="action-cluster">
+					<a-button size="large" @click="resetSearch">重置筛选</a-button>
+					<a-button type="primary" size="large" @click="openCreateModal">新增用户</a-button>
+				</div>
 			</div>
 		</section>
 
 		<section class="metrics-grid">
 			<div class="metric-panel accent">
 				<div class="metric-label">用户总量</div>
-				<div class="metric-value">{{ users.length }}</div>
-				<div class="metric-meta">当前后台可直接维护的 app 账号总数</div>
+				<div class="metric-value">{{ displayedUsers.length }}</div>
+				<div class="metric-meta">当前后台可直接维护的应用账号总数</div>
 			</div>
 			<div class="metric-panel">
 				<div class="metric-label">登录活跃</div>
-				<div class="metric-value">{{ loggedInCount }}</div>
+				<div class="metric-value">{{ displayedLoggedInCount }}</div>
 				<div class="metric-meta">至少登录过一次的用户数量</div>
 			</div>
 			<div class="metric-panel">
 				<div class="metric-label">资料完整</div>
-				<div class="metric-value">{{ profileCompleteCount }}</div>
+				<div class="metric-value">{{ displayedProfileCompleteCount }}</div>
 				<div class="metric-meta">同时填写手机号和邮箱的用户</div>
 			</div>
 		</section>
@@ -61,13 +83,20 @@
 						<div class="table-title">用户列表</div>
 						<div class="table-subtitle">支持快速检索、编辑资料与状态维护</div>
 					</div>
-					<a-tag color="cyan">{{ loading ? '加载中' : `共 ${users.length} 人` }}</a-tag>
+					<a-tag color="cyan">{{ loading ? '加载中' : `共 ${displayedUsers.length} 人` }}</a-tag>
 				</div>
 			</template>
+			<div class="table-toolbar">
+				<div class="table-note">可按关键词和账号状态联合筛选，便于定位异常或待维护用户。</div>
+				<div class="table-toolbar-meta">
+					<a-tag color="blue">启用 {{ displayedActiveCount }}</a-tag>
+					<a-tag color="default">禁用 {{ displayedDisabledCount }}</a-tag>
+				</div>
+			</div>
 			<a-table
 				row-key="id"
 				:loading="loading"
-				:data-source="users"
+				:data-source="displayedUsers"
 				:columns="columns"
 				:pagination="{ pageSize: 8, showSizeChanger: false }"
 				:scroll="{ x: 980 }"
@@ -136,8 +165,11 @@
 					<div class="table-empty">
 						<div class="empty-orb">U</div>
 						<div class="empty-title">还没有匹配到用户</div>
-						<div class="empty-desc">试试更换关键词，或者直接创建一个新的 app 用户。</div>
-						<a-button type="primary" @click="openCreateModal">立即新增</a-button>
+						<div class="empty-desc">当前筛选条件下没有结果，可以重置筛选或直接新增应用用户。</div>
+						<div class="empty-actions">
+							<a-button @click="resetSearch">重置筛选</a-button>
+							<a-button type="primary" @click="openCreateModal">立即新增</a-button>
+						</div>
 					</div>
 				</template>
 			</a-table>
@@ -145,7 +177,7 @@
 
 		<a-modal
 			v-model:open="modalOpen"
-			:title="modalMode === 'create' ? '新增 App 用户' : '编辑 App 用户'"
+			:title="modalMode === 'create' ? '新增应用用户' : '编辑应用用户'"
 			wrap-class-name="user-modal-wrap"
 			:confirm-loading="submitLoading"
 			:mask-closable="false"
@@ -265,12 +297,19 @@ const loading = ref(false);
 const submitLoading = ref(false);
 const users = ref<AppUser[]>([]);
 const keyword = ref('');
+const statusFilter = ref<'all' | 'enabled' | 'disabled'>('all');
 const modalOpen = ref(false);
 const modalMode = ref<ModalMode>('create');
 const currentId = ref<number | null>(null);
 const formRef = ref<FormInstance>();
 
 const formState = reactive<AppUserFormState>(createDefaultFormState());
+
+const statusOptions = [
+	{ label: '全部状态', value: 'all' },
+	{ label: '仅看启用', value: 'enabled' },
+	{ label: '仅看禁用', value: 'disabled' }
+];
 
 const columns: TableColumnsType<AppUser> = [
 	{
@@ -350,6 +389,19 @@ const activeCount = computed(() => users.value.filter((item) => item.status === 
 const disabledCount = computed(() => users.value.filter((item) => item.status !== 1).length);
 const loggedInCount = computed(() => users.value.filter((item) => item.lastLoginAt).length);
 const profileCompleteCount = computed(() => users.value.filter((item) => item.phone && item.email).length);
+const displayedUsers = computed(() => {
+	if (statusFilter.value === 'enabled') {
+		return users.value.filter((item) => item.status === 1);
+	}
+	if (statusFilter.value === 'disabled') {
+		return users.value.filter((item) => item.status !== 1);
+	}
+	return users.value;
+});
+const displayedActiveCount = computed(() => displayedUsers.value.filter((item) => item.status === 1).length);
+const displayedDisabledCount = computed(() => displayedUsers.value.filter((item) => item.status !== 1).length);
+const displayedLoggedInCount = computed(() => displayedUsers.value.filter((item) => item.lastLoginAt).length);
+const displayedProfileCompleteCount = computed(() => displayedUsers.value.filter((item) => item.phone && item.email).length);
 const recentCount = computed(() => {
 	const now = Date.now();
 	const sevenDays = 7 * 24 * 60 * 60 * 1000;
@@ -379,6 +431,7 @@ async function loadUsers() {
 
 function resetSearch() {
 	keyword.value = '';
+	statusFilter.value = 'all';
 	loadUsers();
 }
 
@@ -462,7 +515,9 @@ function resetForm(): void {
 @import '@/styles/ops-surface.css';
 
 .toolbar-panel {
-	background: linear-gradient(135deg, #0c2037, #123c67 52%, #0f766e 100%);
+	background:
+		radial-gradient(circle at right top, rgba(140, 188, 255, 0.18), transparent 26%),
+		linear-gradient(135deg, rgba(255, 255, 255, 0.78) 0%, rgba(239, 246, 255, 0.92) 52%, rgba(232, 243, 255, 0.84) 100%);
 }
 
 .metrics-grid {

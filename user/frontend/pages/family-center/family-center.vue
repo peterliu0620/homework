@@ -8,7 +8,7 @@
 			<view class="hero-copy">
 				<text class="eyebrow">Family Desk</text>
 				<text class="hero-title">从家属视角快速看懂识别动态与照护重点</text>
-				<text class="hero-desc">家人端先聚合最近识别记录、风险提醒和登记信息完成度，首版全部基于本地 mock，方便先把照护流程跑起来。</text>
+				<text class="hero-desc">家人端现在直接读取后端接口，聚合最近识别记录、风险提醒和登记完成度，不再依赖本地 mock 数据。</text>
 
 				<view class="hero-actions">
 					<button class="action-btn primary" @click="goRecords">查看识别记录</button>
@@ -20,19 +20,19 @@
 			<view class="hero-stats">
 				<view class="stat-card stat-card-strong">
 					<text class="stat-label">今日识别</text>
-					<text class="stat-value">{{ dashboard.todayCount }}</text>
+					<text class="stat-value">{{ dashboard.todayCount || 0 }}</text>
 				</view>
 				<view class="stat-card">
 					<text class="stat-label">风险提醒</text>
-					<text class="stat-value">{{ dashboard.riskCount }}</text>
+					<text class="stat-value">{{ dashboard.riskCount || 0 }}</text>
 				</view>
 				<view class="stat-card">
 					<text class="stat-label">登记完成</text>
-					<text class="stat-value">{{ dashboard.completedSections }}/3</text>
+					<text class="stat-value">{{ dashboard.completedSections || 0 }}/3</text>
 				</view>
 				<view class="stat-card">
 					<text class="stat-label">最近记录</text>
-					<text class="stat-value">{{ dashboard.records.length }}</text>
+					<text class="stat-value">{{ dashboard.recordsCount || 0 }}</text>
 				</view>
 			</view>
 		</view>
@@ -48,31 +48,31 @@
 
 			<view class="alert-band">
 				<text class="alert-title">{{ latestRiskTitle }}</text>
-				<text class="alert-text">{{ dashboard.recentRiskText }}</text>
+				<text class="alert-text">{{ dashboard.recentRiskText || '当前暂无新的风险提醒。' }}</text>
 			</view>
 		</view>
 
 		<view class="section-panel">
 			<view class="section-head">
 				<view>
-					<text class="section-kicker">登记概览</text>
-					<text class="section-title">照护资料状态</text>
+					<text class="section-kicker">关联对象</text>
+					<text class="section-title">当前照护对象</text>
 				</view>
-				<text class="section-tag">本地缓存</text>
+				<text class="section-tag">后端接口</text>
 			</view>
 
 			<view class="progress-grid">
 				<view class="progress-item">
-					<text class="progress-label">视障人士基本信息</text>
-					<text class="progress-value">{{ profile.basicInfo.name || '待填写' }}</text>
+					<text class="progress-label">视障人士</text>
+					<text class="progress-value">{{ dashboard.visionUserNickname || '尚未自动关联' }}</text>
 				</view>
 				<view class="progress-item">
-					<text class="progress-label">紧急联系人</text>
-					<text class="progress-value">{{ profile.emergencyContact.name || '待填写' }}</text>
+					<text class="progress-label">最近风险提醒</text>
+					<text class="progress-value">{{ dashboard.riskCount || 0 }} 条</text>
 				</view>
 				<view class="progress-item">
-					<text class="progress-label">药品/疾病注意事项</text>
-					<text class="progress-value">{{ healthSummary }}</text>
+					<text class="progress-label">信息登记完成度</text>
+					<text class="progress-value">{{ dashboard.completedSections || 0 }}/3</text>
 				</view>
 			</view>
 		</view>
@@ -84,6 +84,10 @@
 					<text class="section-title">识别摘要</text>
 				</view>
 				<text class="section-tag">最近 2 条</text>
+			</view>
+
+			<view v-if="!previewRecords.length" class="record-preview">
+				<text class="preview-text">当前还没有可展示的识别记录。</text>
 			</view>
 
 			<view v-for="record in previewRecords" :key="record.id" class="record-preview">
@@ -103,8 +107,8 @@
 <script>
 	import { defineComponent } from 'vue';
 	import AppTabBar from '../../components/app-tab-bar.vue';
+	import { API_BASE } from '../../utils/api';
 	import { clearAuthUser, getAuthUser, isFamilyRole } from '../../utils/auth';
-	import { getFamilyDashboard } from '../../utils/family-data';
 	import { loadUserSettings } from '../../utils/user-settings';
 
 	export default defineComponent({
@@ -114,7 +118,8 @@
 		data() {
 			return {
 				settings: loadUserSettings(),
-				dashboard: getFamilyDashboard()
+				dashboard: {},
+				previewRecords: []
 			};
 		},
 		computed: {
@@ -124,18 +129,8 @@
 			largeFontClass() {
 				return this.settings.extraLargeText ? 'font-large' : '';
 			},
-			profile() {
-				return this.dashboard.profile || {};
-			},
-			previewRecords() {
-				return (this.dashboard.records || []).slice(0, 2);
-			},
 			latestRiskTitle() {
 				return this.dashboard.riskCount ? '最近出现新的风险提醒' : '当前识别记录整体平稳';
-			},
-			healthSummary() {
-				const health = this.profile.healthInfo || {};
-				return health.medicine || health.diseaseNote || '待填写';
 			}
 		},
 		onLoad() {
@@ -143,7 +138,8 @@
 		},
 		onShow() {
 			this.settings = loadUserSettings();
-			this.dashboard = getFamilyDashboard();
+			this.loadDashboard();
+			this.loadPreviewRecords();
 		},
 		methods: {
 			ensureFamilyRole() {
@@ -157,6 +153,37 @@
 					return false;
 				}
 				return true;
+			},
+			loadDashboard() {
+				const user = getAuthUser();
+				uni.request({
+					url: `${API_BASE}/api/family/dashboard`,
+					method: 'GET',
+					data: {
+						familyUserId: user.id
+					},
+					success: (res) => {
+						if (res.statusCode === 200) {
+							this.dashboard = res.data || {};
+						}
+					}
+				});
+			},
+			loadPreviewRecords() {
+				const user = getAuthUser();
+				uni.request({
+					url: `${API_BASE}/api/family/records`,
+					method: 'GET',
+					data: {
+						familyUserId: user.id,
+						limit: 2
+					},
+					success: (res) => {
+						if (res.statusCode === 200) {
+							this.previewRecords = Array.isArray(res.data) ? res.data : [];
+						}
+					}
+				});
 			},
 			goRecords() {
 				uni.redirectTo({
@@ -195,13 +222,14 @@
 	.record-preview {
 		padding: 24rpx;
 		border-radius: 24rpx;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(245, 249, 255, 0.72));
+		border: 1px solid rgba(255, 255, 255, 0.84);
+		box-shadow: 0 16rpx 40rpx rgba(79, 118, 172, 0.08);
 	}
 
 	.alert-band {
-		background: linear-gradient(155deg, rgba(255, 212, 107, 0.16), rgba(135, 215, 255, 0.08));
-		border-color: rgba(255, 212, 107, 0.2);
+		background: linear-gradient(135deg, rgba(236, 244, 255, 0.96), rgba(255, 255, 255, 0.94));
+		border-color: rgba(193, 220, 255, 0.92);
 	}
 
 	.alert-title,
@@ -255,9 +283,9 @@
 	}
 
 	.action-btn.danger {
-		background: rgba(255, 107, 107, 0.14);
-		color: #ffd7d7;
-		border: 1px solid rgba(255, 107, 107, 0.28);
+		background: rgba(227, 80, 80, 0.12);
+		color: #b42318;
+		border: 1px solid rgba(227, 80, 80, 0.22);
 	}
 
 	.preview-head {
@@ -269,12 +297,6 @@
 
 	.preview-meta {
 		margin-top: 10rpx;
-	}
-
-	.font-large .alert-text,
-	.font-large .preview-text,
-	.font-large .progress-value {
-		font-size: 34rpx;
 	}
 
 	@media screen and (max-width: 720px) {

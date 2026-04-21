@@ -8,7 +8,7 @@
 			<view class="hero-copy">
 				<text class="eyebrow">Family Records</text>
 				<text class="hero-title">按家属视角回看最近识别记录与风险提醒</text>
-				<text class="hero-desc">首版先展示识别时间、摘要、场景名、位置备注和风险提醒，方便你快速确认需要回访的时段。</text>
+				<text class="hero-desc">这里直接读取后端记录接口，展示识别时间、摘要、场景名、位置备注和风险提醒。</text>
 
 				<view class="hero-actions">
 					<button class="action-btn primary" @click="refreshRecords">刷新记录</button>
@@ -42,7 +42,11 @@
 					<text class="section-kicker">记录列表</text>
 					<text class="section-title">最近识别</text>
 				</view>
-				<text class="section-tag">Mock 数据</text>
+				<text class="section-tag">后端接口</text>
+			</view>
+
+			<view v-if="!records.length" class="record-card">
+				<text class="record-summary">当前还没有识别记录。</text>
 			</view>
 
 			<view v-for="record in records" :key="record.id" class="record-card">
@@ -89,8 +93,8 @@
 <script>
 	import { defineComponent } from 'vue';
 	import AppTabBar from '../../components/app-tab-bar.vue';
+	import { API_BASE } from '../../utils/api';
 	import { getAuthUser, isFamilyRole } from '../../utils/auth';
-	import { loadFamilyRecords } from '../../utils/family-data';
 	import { loadUserSettings } from '../../utils/user-settings';
 
 	export default defineComponent({
@@ -100,7 +104,7 @@
 		data() {
 			return {
 				settings: loadUserSettings(),
-				records: loadFamilyRecords()
+				records: []
 			};
 		},
 		computed: {
@@ -141,7 +145,26 @@
 				return true;
 			},
 			refreshRecords() {
-				this.records = loadFamilyRecords();
+				const user = getAuthUser();
+				uni.request({
+					url: `${API_BASE}/api/family/records`,
+					method: 'GET',
+					data: {
+						familyUserId: user.id,
+						limit: 10
+					},
+					success: (res) => {
+						if (res.statusCode === 200) {
+							this.records = Array.isArray(res.data) ? res.data : [];
+							return;
+						}
+						const data = res.data || {};
+						uni.showToast({ title: data.message || '记录加载失败', icon: 'none' });
+					},
+					fail: () => {
+						uni.showToast({ title: '记录加载失败', icon: 'none' });
+					}
+				});
 			},
 			goProfile() {
 				uni.redirectTo({
@@ -163,8 +186,9 @@
 
 	.record-card {
 		padding: 24rpx;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(245, 249, 255, 0.72));
+		border: 1px solid rgba(255, 255, 255, 0.84);
+		box-shadow: 0 16rpx 40rpx rgba(79, 118, 172, 0.08);
 	}
 
 	.record-card + .record-card {
@@ -201,15 +225,15 @@
 		padding: 10rpx 18rpx;
 		border-radius: 999rpx;
 		font-size: 22rpx;
-		color: var(--text-main);
-		background: rgba(255, 255, 255, 0.06);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		color: var(--accent-strong);
+		background: rgba(255, 255, 255, 0.66);
+		border: 1px solid rgba(255, 255, 255, 0.86);
 	}
 
 	.risk-badge-hot {
-		color: #ffe2d5;
-		background: rgba(255, 123, 96, 0.12);
-		border-color: rgba(255, 123, 96, 0.24);
+		color: #b42318;
+		background: rgba(227, 80, 80, 0.12);
+		border-color: rgba(227, 80, 80, 0.22);
 	}
 
 	.record-grid {
@@ -221,15 +245,17 @@
 
 	.record-meta {
 		padding: 20rpx;
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: rgba(255, 255, 255, 0.72);
+		border: 1px solid rgba(255, 255, 255, 0.84);
+		box-shadow: 0 16rpx 36rpx rgba(79, 118, 172, 0.08);
 	}
 
 	.risk-panel {
 		margin-top: 16rpx;
 		padding: 20rpx;
-		background: rgba(255, 123, 96, 0.08);
-		border: 1px solid rgba(255, 123, 96, 0.16);
+		background: linear-gradient(180deg, rgba(255, 246, 246, 0.92), rgba(255, 255, 255, 0.82));
+		border: 1px solid rgba(244, 171, 171, 0.42);
+		box-shadow: 0 16rpx 36rpx rgba(227, 80, 80, 0.08);
 	}
 
 	.risk-text {
@@ -237,28 +263,16 @@
 		margin-top: 8rpx;
 		font-size: 28rpx;
 		line-height: 1.7;
-		color: #ffd7cc;
-	}
-
-	.font-large .record-summary,
-	.font-large .meta-value,
-	.font-large .risk-text {
-		font-size: 34rpx;
+		color: var(--text-soft);
 	}
 
 	@media screen and (max-width: 720px) {
-		.record-head,
 		.record-grid {
 			grid-template-columns: 1fr;
 		}
 
 		.record-head {
-			display: block;
-		}
-
-		.risk-badge {
-			display: inline-block;
-			margin-top: 12rpx;
+			flex-wrap: wrap;
 		}
 	}
 </style>

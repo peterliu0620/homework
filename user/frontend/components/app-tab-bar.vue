@@ -30,7 +30,6 @@
 			return {
 				visionItems: [
 					{ key: 'home', label: '识别', icon: '◎', url: '/pages/index/index' },
-					{ key: 'knowledge', label: '知识库', icon: '◌', url: '/pages/knowledge/knowledge' },
 					{ key: 'profile', label: '我的', icon: '◐', url: '/pages/user-center/user-center' }
 				],
 				familyItems: [
@@ -84,10 +83,10 @@
 		gap: 12rpx;
 		padding: 14rpx;
 		border-radius: 30rpx;
-		background: linear-gradient(160deg, rgba(8, 14, 24, 0.94), rgba(10, 18, 29, 0.88));
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		box-shadow: 0 24rpx 60rpx rgba(0, 0, 0, 0.34);
-		backdrop-filter: blur(18rpx);
+		background: linear-gradient(135deg, rgba(255, 255, 255, 0.76), rgba(243, 248, 255, 0.88));
+		border: 1px solid rgba(255, 255, 255, 0.84);
+		box-shadow: 0 24rpx 60rpx rgba(79, 118, 172, 0.16);
+		backdrop-filter: blur(20rpx) saturate(140%);
 	}
 
 	.app-tab-item {
@@ -99,14 +98,15 @@
 		gap: 6rpx;
 		min-height: 88rpx;
 		border-radius: 22rpx;
-		color: rgba(244, 248, 255, 0.7);
+		color: #6a7f9b;
 		transition: all 0.2s ease;
 	}
 
 	.app-tab-item-active {
-		background: linear-gradient(135deg, rgba(255, 212, 107, 0.22), rgba(135, 215, 255, 0.14));
-		color: #fff5d1;
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+		background: linear-gradient(135deg, rgba(230, 241, 255, 0.96), rgba(255, 255, 255, 0.88));
+		color: #115ea3;
+		border: 1px solid rgba(255, 255, 255, 0.88);
+		box-shadow: 0 12rpx 28rpx rgba(79, 118, 172, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.82);
 	}
 
 	.app-tab-icon {

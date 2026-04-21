@@ -13,19 +13,19 @@
 			<div class="brand-block">
 				<div class="brand-mark">VG</div>
 				<div v-if="!collapsed" class="brand-copy">
-					<div class="brand-title">Vision Guard</div>
+					<div class="brand-title">视障守护</div>
 					<div class="brand-subtitle">视障守护管理台</div>
 				</div>
 			</div>
 
 			<div v-if="!collapsed" class="sider-panel">
-				<div class="panel-kicker">Workspace</div>
+				<div class="panel-kicker">当前页面</div>
 				<div class="panel-title">{{ pageTitle }}</div>
-				<div class="panel-meta">{{ pageDescription }}</div>
+				<div class="panel-meta">集中处理当前页面的管理任务与数据操作。</div>
 			</div>
 
 			<div v-if="!collapsed" class="nav-section-label">总览</div>
-			<a-menu :selected-keys="selectedKeys" theme="dark" mode="inline" class="nav-menu">
+			<a-menu :selected-keys="selectedKeys" theme="light" mode="inline" class="nav-menu">
 				<a-menu-item key="/dashboard" @click="router.push('/dashboard')">
 					<template #icon>
 						<dashboard-outlined />
@@ -35,12 +35,12 @@
 			</a-menu>
 
 			<div v-if="!collapsed" class="nav-section-label">核心模块</div>
-			<a-menu :selected-keys="selectedKeys" theme="dark" mode="inline" class="nav-menu nav-menu-compact">
+			<a-menu :selected-keys="selectedKeys" theme="light" mode="inline" class="nav-menu nav-menu-compact">
 				<a-menu-item key="/app-users" @click="router.push('/app-users')">
 					<template #icon>
 						<user-outlined />
 					</template>
-					App 用户
+					应用用户
 				</a-menu-item>
 				<a-menu-item key="/family-bindings" @click="router.push('/family-bindings')">
 					<template #icon>
@@ -63,16 +63,16 @@
 			</a-menu>
 
 			<div v-if="!collapsed" class="sider-summary">
-				<div class="summary-title">当前工作台</div>
+				<div class="summary-title">工作台摘要</div>
 				<div class="summary-value">{{ pageTitle }}</div>
-				<div class="summary-meta">统一处理用户、家属、药品和日志协同，优先服务守护闭环。</div>
+				<div class="summary-meta">统一处理用户、家属、药品和日志协同，服务视障守护闭环。</div>
 			</div>
 		</a-layout-sider>
 
 		<a-layout class="admin-main">
 			<a-layout-header class="admin-header">
 				<div class="header-copy">
-					<div class="header-kicker">Safety Operations</div>
+					<div class="header-kicker">管理工作台</div>
 					<div class="header-title">{{ pageTitle }}</div>
 					<div class="header-desc">{{ pageDescription }}</div>
 				</div>
@@ -81,11 +81,11 @@
 					<div class="header-chip-list">
 						<div class="header-chip">
 							<span class="chip-dot chip-dot-live"></span>
-							核心安全场景
+							核心管理模块
 						</div>
 						<div class="header-chip">
 							<span class="chip-dot"></span>
-							后台直绑协同
+							视障守护后台
 						</div>
 					</div>
 					<div class="profile-chip">
@@ -123,7 +123,7 @@ const pageTitle = computed(() => {
 	}
 
 	if (route.path.startsWith('/app-users')) {
-		return 'App 用户管理';
+		return '应用用户管理';
 	}
 	if (route.path.startsWith('/family-bindings')) {
 		return '家属绑定管理';
@@ -167,9 +167,10 @@ function handleLogout() {
 	position: relative;
 	min-height: 100vh;
 	background:
-		radial-gradient(1200px 700px at -10% -10%, rgba(20, 184, 166, 0.18), transparent 60%),
-		radial-gradient(900px 700px at 100% 0%, rgba(249, 115, 22, 0.16), transparent 55%),
-		linear-gradient(180deg, #08111f 0%, #0b1424 42%, #08111a 100%);
+		radial-gradient(960px 640px at 0% 0%, rgba(105, 170, 255, 0.22), transparent 60%),
+		radial-gradient(720px 520px at 100% 0%, rgba(120, 210, 255, 0.24), transparent 55%),
+		radial-gradient(880px 680px at 50% 100%, rgba(212, 228, 255, 0.58), transparent 60%),
+		linear-gradient(180deg, #f6f9ff 0%, #edf4ff 42%, #f8fbff 100%);
 	overflow: hidden;
 }
 
@@ -182,11 +183,11 @@ function handleLogout() {
 }
 
 .shell-glow-primary {
-	top: -120px;
-	right: -120px;
+	top: -100px;
+	right: -80px;
 	width: 360px;
 	height: 360px;
-	background: rgba(45, 212, 191, 0.24);
+	background: rgba(85, 151, 255, 0.26);
 }
 
 .shell-glow-secondary {
@@ -194,7 +195,7 @@ function handleLogout() {
 	bottom: 120px;
 	width: 420px;
 	height: 420px;
-	background: rgba(249, 115, 22, 0.18);
+	background: rgba(146, 188, 255, 0.22);
 }
 
 .admin-sider {
@@ -202,10 +203,11 @@ function handleLogout() {
 	z-index: 1;
 	margin: 20px 0 20px 20px;
 	padding: 18px 14px;
-	border: 1px solid rgba(148, 163, 184, 0.14);
-	border-radius: 28px;
-	background: linear-gradient(180deg, rgba(10, 18, 32, 0.94), rgba(9, 16, 28, 0.86));
-	box-shadow: 0 30px 80px rgba(2, 6, 23, 0.45);
+	border: 1px solid rgba(255, 255, 255, 0.72);
+	border-radius: 30px;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(245, 249, 255, 0.5));
+	backdrop-filter: blur(24px) saturate(140%);
+	box-shadow: 0 24px 70px rgba(46, 91, 145, 0.14);
 }
 
 :deep(.admin-sider .ant-layout-sider-children) {
@@ -217,7 +219,8 @@ function handleLogout() {
 :deep(.admin-sider .ant-layout-sider-trigger) {
 	margin: 10px 8px 0;
 	border-radius: 16px;
-	background: rgba(255, 255, 255, 0.06);
+	background: rgba(255, 255, 255, 0.52);
+	color: #255fbd;
 }
 
 .brand-block {
@@ -236,15 +239,18 @@ function handleLogout() {
 	font-size: 15px;
 	font-weight: 700;
 	letter-spacing: 0.08em;
-	color: #07111e;
-	background: linear-gradient(135deg, #67e8f9, #facc15);
-	box-shadow: 0 20px 36px rgba(103, 232, 249, 0.18);
+	color: #11448d;
+	background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(216, 232, 255, 0.94));
+	border: 1px solid rgba(255, 255, 255, 0.8);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 18px 30px rgba(72, 118, 178, 0.16);
 }
 
 .brand-title {
+	font-family: var(--font-display);
 	font-size: 16px;
-	font-weight: 700;
-	color: #f8fafc;
+	font-weight: 680;
+	letter-spacing: -0.01em;
+	color: #183153;
 }
 
 .brand-subtitle {
@@ -252,16 +258,18 @@ function handleLogout() {
 	font-size: 12px;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: rgba(148, 163, 184, 0.8);
+	font-weight: 560;
+	color: rgba(63, 94, 135, 0.76);
 }
 
 .sider-panel,
 .sider-summary {
 	margin: 10px 8px 18px;
 	padding: 18px;
-	border-radius: 22px;
-	background: rgba(255, 255, 255, 0.04);
-	border: 1px solid rgba(148, 163, 184, 0.12);
+	border-radius: 24px;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(245, 249, 255, 0.44));
+	border: 1px solid rgba(255, 255, 255, 0.78);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .panel-kicker,
@@ -273,16 +281,18 @@ function handleLogout() {
 	font-weight: 600;
 	letter-spacing: 0.16em;
 	text-transform: uppercase;
-	color: rgba(148, 163, 184, 0.72);
+	color: rgba(70, 102, 144, 0.74);
 }
 
 .panel-title,
 .summary-value {
 	margin-top: 10px;
+	font-family: var(--font-display);
 	font-size: 20px;
-	font-weight: 700;
+	font-weight: 690;
+	letter-spacing: -0.02em;
 	line-height: 1.2;
-	color: #f8fafc;
+	color: #143055;
 }
 
 .panel-meta,
@@ -292,7 +302,8 @@ function handleLogout() {
 	margin-top: 8px;
 	font-size: 13px;
 	line-height: 1.7;
-	color: rgba(203, 213, 225, 0.78);
+	font-weight: 450;
+	color: rgba(69, 90, 118, 0.82);
 }
 
 .nav-section-label {
@@ -309,17 +320,22 @@ function handleLogout() {
 	height: 48px;
 	margin: 6px 0;
 	border-radius: 16px;
-	color: rgba(226, 232, 240, 0.82);
+	color: rgba(29, 58, 99, 0.88);
+	font-size: 14px;
+	font-weight: 560;
+	transition: background-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
 }
 
 :deep(.nav-menu .ant-menu-item:hover) {
-	color: #ffffff;
-	background: rgba(255, 255, 255, 0.06);
+	color: #0f4ea8;
+	background: rgba(255, 255, 255, 0.58);
+	transform: translateY(-1px);
 }
 
 :deep(.nav-menu .ant-menu-item-selected) {
-	background: linear-gradient(135deg, rgba(20, 184, 166, 0.22), rgba(59, 130, 246, 0.18));
-	color: #f8fafc;
+	background: linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(222, 236, 255, 0.94));
+	color: #0e4ba4;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.94), 0 12px 24px rgba(112, 156, 217, 0.18);
 }
 
 .admin-main {
@@ -336,19 +352,21 @@ function handleLogout() {
 	height: auto;
 	margin: 20px 20px 0;
 	padding: 24px 28px;
-	border: 1px solid rgba(148, 163, 184, 0.14);
-	border-radius: 28px;
-	background: linear-gradient(160deg, rgba(10, 18, 32, 0.8), rgba(9, 16, 28, 0.62));
-	backdrop-filter: blur(18px);
-	box-shadow: 0 30px 80px rgba(2, 6, 23, 0.28);
+	border: 1px solid rgba(255, 255, 255, 0.76);
+	border-radius: 30px;
+	background: linear-gradient(160deg, rgba(255, 255, 255, 0.62), rgba(244, 249, 255, 0.48));
+	backdrop-filter: blur(22px) saturate(140%);
+	box-shadow: 0 24px 60px rgba(46, 91, 145, 0.12);
 }
 
 .header-title {
 	margin-top: 8px;
+	font-family: var(--font-display);
 	font-size: 34px;
-	font-weight: 700;
+	font-weight: 720;
+	letter-spacing: -0.035em;
 	line-height: 1.12;
-	color: #f8fafc;
+	color: #183153;
 }
 
 .header-actions {
@@ -371,41 +389,45 @@ function handleLogout() {
 	gap: 8px;
 	padding: 8px 12px;
 	border-radius: 999px;
-	background: rgba(255, 255, 255, 0.05);
-	border: 1px solid rgba(148, 163, 184, 0.14);
-	color: rgba(226, 232, 240, 0.88);
+	background: rgba(255, 255, 255, 0.62);
+	border: 1px solid rgba(255, 255, 255, 0.78);
+	color: #244264;
 	font-size: 12px;
+	font-weight: 560;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .chip-dot {
 	width: 8px;
 	height: 8px;
 	border-radius: 999px;
-	background: #38bdf8;
-	box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.18);
+	background: #4c8dff;
+	box-shadow: 0 0 0 4px rgba(76, 141, 255, 0.14);
 }
 
 .chip-dot-live {
-	background: #34d399;
-	box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.18);
+	background: #2280ff;
+	box-shadow: 0 0 0 4px rgba(34, 128, 255, 0.16);
 }
 
 .profile-chip {
 	min-width: 0;
 	padding: 8px 12px;
 	border-radius: 14px;
-	background: rgba(255, 255, 255, 0.05);
-	border: 1px solid rgba(148, 163, 184, 0.14);
+	background: rgba(255, 255, 255, 0.66);
+	border: 1px solid rgba(255, 255, 255, 0.8);
 	display: flex;
 	flex-direction: column;
 	gap: 2px;
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
 }
 
 .profile-name {
 	margin-top: 0;
+	font-family: var(--font-display);
 	font-size: 13px;
-	font-weight: 700;
-	color: #f8fafc;
+	font-weight: 650;
+	color: #173355;
 	line-height: 1.2;
 }
 
@@ -418,10 +440,10 @@ function handleLogout() {
 .logout-btn {
 	height: 40px;
 	padding-inline: 18px;
-	border-radius: 12px;
-	border: none;
-	background: linear-gradient(135deg, #14b8a6, #0f766e);
-	box-shadow: 0 16px 32px rgba(20, 184, 166, 0.22);
+	border-radius: 14px;
+	border: 1px solid rgba(255, 255, 255, 0.88);
+	background: linear-gradient(135deg, #2a7cff, #1663d6);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 16px 32px rgba(42, 124, 255, 0.22);
 }
 
 .admin-content {

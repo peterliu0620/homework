@@ -13,6 +13,7 @@ public class SysUser {
     private String nickname;
     private String phone;
     private String email;
+    private String role;
     private Integer status;
     private LocalDateTime lastLoginAt;
     private LocalDateTime createdAt;

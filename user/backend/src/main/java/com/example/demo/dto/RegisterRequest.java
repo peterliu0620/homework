@@ -25,4 +25,8 @@ public class RegisterRequest {
 
     @Pattern(regexp = "^$|^[\\w.-]+@[\\w.-]+\\.[A-Za-z]{2,}$", message = "邮箱格式不正确")
     private String email;
+
+    @NotBlank(message = "角色不能为空")
+    @Pattern(regexp = "^(vision|family)$", message = "角色只能是 vision 或 family")
+    private String role;
 }

@@ -42,4 +42,36 @@ public interface MedicineSafetyMapper {
     int countRecentScanByMedicineName(@Param("userId") Long userId,
                                       @Param("medicineName") String medicineName,
                                       @Param("start") LocalDateTime start);
+
+    @Select("""
+            select count(1)
+            from medicine_scan_alert
+            where user_id = #{userId}
+            """)
+    int countAlertsByUserId(@Param("userId") Long userId);
+
+    @Select("""
+            select alert_message
+            from medicine_scan_alert
+            where user_id = #{userId}
+            order by created_at desc, id desc
+            limit 1
+            """)
+    String findLatestAlertMessageByUserId(@Param("userId") Long userId);
+
+    @Select("""
+            select count(1)
+            from medicine_scan_alert
+            where scan_record_id = #{recordId}
+            """)
+    int countAlertsByRecordId(@Param("recordId") Long recordId);
+
+    @Select("""
+            select alert_message
+            from medicine_scan_alert
+            where scan_record_id = #{recordId}
+            order by created_at desc, id desc
+            limit 1
+            """)
+    String findLatestAlertMessageByRecordId(@Param("recordId") Long recordId);
 }

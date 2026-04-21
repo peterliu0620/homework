@@ -2,11 +2,16 @@
   <div class="ops-page">
     <section class="hero medicine-hero">
       <div>
-        <div class="hero-kicker">MEDICINE SAFETY</div>
+        <div class="hero-kicker">药品档案管理</div>
         <h2>把药品档案提前录好，用户扫描命中后就能优先播报用法、禁忌和有效期提醒。</h2>
         <p>这里重点维护名称、别名、说明摘要和有效期，前端识别命中后会自动切到药品优先播报与强预警模式。</p>
+        <div class="inline-summary">
+          <div class="summary-pill">档案 <strong>{{ profiles.length }}</strong> 条</div>
+          <div class="summary-pill">即将过期 <strong>{{ expiringSoonCount }}</strong> 条</div>
+          <div class="summary-pill">已过期 <strong>{{ expiredCount }}</strong> 条</div>
+        </div>
       </div>
-      <div class="hero-actions">
+      <div class="toolbar-stack">
         <a-input-search
           v-model:value="keyword"
           placeholder="搜索药品名称 / 别名"
@@ -14,8 +19,25 @@
           enter-button="搜索"
           @search="loadProfiles"
         />
-        <a-button size="large" @click="resetSearch">重置</a-button>
-        <a-button type="primary" size="large" @click="openCreateModal">新增档案</a-button>
+        <div class="action-cluster">
+          <a-button size="large" @click="resetSearch">重置筛选</a-button>
+          <a-button type="primary" size="large" @click="openCreateModal">新增档案</a-button>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats-grid">
+      <div class="stat-card accent">
+        <div class="stat-label">档案总数</div>
+        <div class="stat-value">{{ profiles.length }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">即将过期</div>
+        <div class="stat-value">{{ expiringSoonCount }}</div>
+      </div>
+      <div class="stat-card warn">
+        <div class="stat-label">已经过期</div>
+        <div class="stat-value">{{ expiredCount }}</div>
       </div>
     </section>
 
@@ -29,6 +51,12 @@
           <a-tag color="orange">共 {{ profiles.length }} 条</a-tag>
         </div>
       </template>
+      <div class="table-toolbar">
+        <div class="table-note">优先维护常用药品与有效期，方便识别命中后快速播报与提醒。</div>
+        <div class="table-toolbar-meta">
+          <a-tag color="orange">搜索条件 {{ keyword ? '已设置' : '未设置' }}</a-tag>
+        </div>
+      </div>
       <a-table
         row-key="id"
         :loading="loading"
@@ -63,6 +91,17 @@
               </a-popconfirm>
             </div>
           </template>
+        </template>
+        <template #emptyText>
+          <div class="table-empty">
+            <div class="empty-orb">M</div>
+            <div class="empty-title">还没有药品档案</div>
+            <div class="empty-desc">可以先新增药品资料，后续识别命中后就能优先播报相关内容。</div>
+            <div class="empty-actions">
+              <a-button @click="resetSearch">重置筛选</a-button>
+              <a-button type="primary" @click="openCreateModal">新增档案</a-button>
+            </div>
+          </div>
         </template>
       </a-table>
     </a-card>
@@ -112,7 +151,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { message, type TableColumnsType } from 'ant-design-vue';
 import type { FormInstance } from 'ant-design-vue/es/form';
 import { createMedicineProfile, deleteMedicineProfile, fetchMedicineProfiles, updateMedicineProfile } from '@/api/familySafety';
@@ -165,6 +204,17 @@ const columns: TableColumnsType<MedicineProfile> = [
   { title: '别名/条码', dataIndex: 'barcodeOrAlias', key: 'barcodeOrAlias', width: 180 },
   { title: '操作', key: 'action', fixed: 'right', width: 120 }
 ];
+
+const expiredCount = computed(() => profiles.value.filter((item) => isExpired(item.expiryDate)).length);
+const expiringSoonCount = computed(() =>
+	profiles.value.filter((item) => {
+		if (!item.expiryDate || isExpired(item.expiryDate)) {
+			return false;
+		}
+		const expiry = new Date(item.expiryDate).getTime();
+		return expiry - Date.now() <= 30 * 24 * 60 * 60 * 1000;
+	}).length
+);
 
 onMounted(loadProfiles);
 
@@ -287,6 +337,8 @@ function isExpired(date?: string): boolean {
 @import '@/styles/ops-surface.css';
 
 .medicine-hero {
-	background: linear-gradient(135deg, #40210f, #9a4d1a 55%, #c96a1d 100%);
+	background:
+		radial-gradient(circle at right top, rgba(144, 193, 255, 0.18), transparent 26%),
+		linear-gradient(135deg, rgba(255, 255, 255, 0.8), rgba(241, 247, 255, 0.92) 55%, rgba(233, 243, 255, 0.84) 100%);
 }
 </style>

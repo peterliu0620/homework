@@ -8,7 +8,7 @@
 			<view class="brand-column">
 				<text class="brand-eyebrow">Vision Guide</text>
 				<text class="brand-title">同一入口，切换两种照护视角</text>
-				<text class="brand-desc">视障人士进入识别工作台，家人进入记录与登记中心。首版全部使用本地 mock 和缓存，方便我们先把前端流程走通。</text>
+				<text class="brand-desc">视障人士进入识别工作台，家人进入记录与登记中心。现在登录和登记都直接走后端接口，不再依赖本地 mock 数据。</text>
 
 				<view class="role-showcase">
 					<view
@@ -34,9 +34,9 @@
 				</view>
 
 				<view class="demo-panel">
-					<text class="demo-title">体验账号</text>
-					<text class="demo-line">视障人士：`vision_demo / 123456`</text>
-					<text class="demo-line">家人：`family_demo / 123456`</text>
+					<text class="demo-title">当前流程说明</text>
+					<text class="demo-line">请先注册对应身份，再使用账号密码登录。</text>
+					<text class="demo-line">家人身份会自动尝试关联唯一的视障人士账号，方便先跑通首版流程。</text>
 				</view>
 			</view>
 
@@ -74,7 +74,9 @@
 					<button class="btn primary" @click="submit" :disabled="loading">
 						{{ loading ? '提交中...' : mode === 'login' ? `以${currentRoleLabel}身份登录` : `注册${currentRoleLabel}账号` }}
 					</button>
-					<button class="btn secondary" @click="fillDemoAccount">填入体验账号</button>
+					<button class="btn secondary" @click="mode = mode === 'login' ? 'register' : 'login'">
+						{{ mode === 'login' ? '切换到注册' : '切换到登录' }}
+					</button>
 				</view>
 
 				<view class="result" v-if="userInfo && userInfo.id">
@@ -88,6 +90,7 @@
 
 <script>
 	import { defineComponent } from 'vue';
+	import { API_BASE } from '../../utils/api';
 	import {
 		ROLE_OPTIONS,
 		USER_ROLE_FAMILY,
@@ -95,8 +98,7 @@
 		getAuthUser,
 		getDefaultRouteByRole,
 		getRoleLabel,
-		loginWithMock,
-		registerWithMock
+		saveAuthUser
 	} from '../../utils/auth';
 
 	export default defineComponent({
@@ -134,37 +136,39 @@
 		},
 		methods: {
 			getRoleLabel,
-			fillDemoAccount() {
-				this.form.username = this.selectedRole === USER_ROLE_FAMILY ? 'family_demo' : 'vision_demo';
-				this.form.password = '123456';
-				if (this.mode === 'register') {
-					this.form.nickname = this.selectedRole === USER_ROLE_FAMILY ? '新家属账号' : '新视障账号';
-				}
-			},
 			submit() {
 				const payload = {
 					...this.form,
 					role: this.selectedRole
 				};
 				this.loading = true;
-
-				setTimeout(() => {
-					const result = this.mode === 'login' ? loginWithMock(payload) : registerWithMock(payload);
-					this.loading = false;
-
-					if (!result.ok) {
-						uni.showToast({ title: result.message, icon: 'none' });
-						return;
+				uni.request({
+					url: `${API_BASE}/api/auth/${this.mode === 'login' ? 'login' : 'register'}`,
+					method: 'POST',
+					header: {
+						'Content-Type': 'application/json'
+					},
+					data: payload,
+					success: (res) => {
+						this.loading = false;
+						if (res.statusCode !== 200) {
+							const data = res.data || {};
+							uni.showToast({ title: data.message || '请求失败', icon: 'none' });
+							return;
+						}
+						this.userInfo = saveAuthUser(res.data || {});
+						uni.showToast({ title: this.mode === 'login' ? '登录成功' : '注册成功', icon: 'success' });
+						setTimeout(() => {
+							uni.reLaunch({
+								url: getDefaultRouteByRole(this.userInfo.role)
+							});
+						}, 240);
+					},
+					fail: () => {
+						this.loading = false;
+						uni.showToast({ title: '后端请求失败', icon: 'none' });
 					}
-
-					this.userInfo = result.user;
-					uni.showToast({ title: this.mode === 'login' ? '登录成功' : '注册成功', icon: 'success' });
-					setTimeout(() => {
-						uni.reLaunch({
-							url: getDefaultRouteByRole(result.user.role)
-						});
-					}, 240);
-				}, 160);
+				});
 			}
 		}
 	});
@@ -180,8 +184,9 @@
 		overflow: hidden;
 		padding: 36rpx 28rpx;
 		background:
-			radial-gradient(120% 100% at 12% 0%, rgba(31, 59, 97, 0.96) 0%, rgba(8, 15, 26, 0) 54%),
-			linear-gradient(180deg, #050c15 0%, #09111a 44%, #071019 100%);
+			radial-gradient(circle at top left, rgba(146, 196, 255, 0.3), rgba(146, 196, 255, 0) 34%),
+			radial-gradient(circle at 82% 10%, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0) 26%),
+			linear-gradient(180deg, #f4f8ff 0%, #edf4ff 48%, #e8f1ff 100%);
 	}
 
 	.auth-glow {
@@ -196,7 +201,7 @@
 		right: -120rpx;
 		width: 420rpx;
 		height: 420rpx;
-		background: radial-gradient(circle, rgba(255, 212, 107, 0.46) 0%, rgba(255, 212, 107, 0) 70%);
+		background: radial-gradient(circle, rgba(76, 141, 255, 0.22) 0%, rgba(76, 141, 255, 0) 70%);
 	}
 
 	.auth-glow-two {
@@ -204,17 +209,17 @@
 		bottom: 120rpx;
 		width: 480rpx;
 		height: 480rpx;
-		background: radial-gradient(circle, rgba(110, 215, 255, 0.24) 0%, rgba(110, 215, 255, 0) 72%);
+		background: radial-gradient(circle, rgba(202, 225, 255, 0.92) 0%, rgba(202, 225, 255, 0) 72%);
 	}
 
 	.auth-grid {
 		position: absolute;
 		inset: 0;
 		background-image:
-			linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+			linear-gradient(rgba(255, 255, 255, 0.24) 1px, transparent 1px),
+			linear-gradient(90deg, rgba(255, 255, 255, 0.24) 1px, transparent 1px);
 		background-size: 46rpx 46rpx;
-		mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.65), transparent 84%);
+		mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.48), transparent 84%);
 		pointer-events: none;
 	}
 
@@ -229,33 +234,21 @@
 
 	.brand-column,
 	.auth-panel {
-		border-radius: 34rpx;
+		border-radius: 30rpx;
 		padding: 34rpx;
-		backdrop-filter: blur(18rpx);
-		box-shadow: 0 28rpx 90rpx rgba(0, 0, 0, 0.28);
+		backdrop-filter: blur(20rpx) saturate(140%);
+		box-shadow: 0 28rpx 70rpx rgba(79, 118, 172, 0.12);
+		border: 1px solid rgba(255, 255, 255, 0.84);
 	}
 
 	.brand-column {
 		position: relative;
 		overflow: hidden;
-		background: linear-gradient(160deg, rgba(13, 22, 36, 0.92), rgba(9, 16, 28, 0.76));
-		border: 2rpx solid rgba(135, 215, 255, 0.12);
-	}
-
-	.brand-column::after {
-		content: '';
-		position: absolute;
-		right: -120rpx;
-		top: -80rpx;
-		width: 320rpx;
-		height: 320rpx;
-		border-radius: 50%;
-		background: radial-gradient(circle, rgba(255, 212, 107, 0.16), rgba(255, 212, 107, 0));
+		background: linear-gradient(135deg, rgba(255, 255, 255, 0.74), rgba(242, 247, 255, 0.88) 52%, rgba(235, 243, 255, 0.8) 100%);
 	}
 
 	.auth-panel {
-		background: linear-gradient(160deg, rgba(9, 16, 27, 0.92), rgba(8, 14, 24, 0.82));
-		border: 2rpx solid rgba(255, 255, 255, 0.08);
+		background: linear-gradient(135deg, rgba(255, 255, 255, 0.78), rgba(246, 250, 255, 0.92));
 	}
 
 	.brand-eyebrow,
@@ -264,7 +257,7 @@
 		font-size: 20rpx;
 		letter-spacing: 6rpx;
 		text-transform: uppercase;
-		color: #9db6d3;
+		color: #7b8da8;
 	}
 
 	.brand-title,
@@ -273,7 +266,7 @@
 		margin-top: 18rpx;
 		line-height: 1.14;
 		font-weight: bold;
-		color: #f3f8ff;
+		color: #173355;
 	}
 
 	.brand-title {
@@ -292,7 +285,7 @@
 		display: block;
 		font-size: 28rpx;
 		line-height: 1.72;
-		color: #a9bfd7;
+		color: #5f7390;
 	}
 
 	.role-showcase,
@@ -310,8 +303,9 @@
 	.demo-panel,
 	.result {
 		border-radius: 24rpx;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(245, 249, 255, 0.72));
+		border: 1px solid rgba(255, 255, 255, 0.84);
+		box-shadow: 0 16rpx 40rpx rgba(79, 118, 172, 0.08);
 	}
 
 	.role-card {
@@ -319,9 +313,9 @@
 	}
 
 	.role-card-active {
-		background: linear-gradient(155deg, rgba(255, 212, 107, 0.16), rgba(135, 215, 255, 0.08));
-		border-color: rgba(255, 212, 107, 0.22);
-		box-shadow: 0 18rpx 40rpx rgba(255, 212, 107, 0.1);
+		background: linear-gradient(135deg, rgba(236, 244, 255, 0.96), rgba(255, 255, 255, 0.94));
+		border-color: rgba(193, 220, 255, 0.92);
+		box-shadow: 0 20rpx 46rpx rgba(76, 141, 255, 0.12);
 	}
 
 	.role-name,
@@ -329,7 +323,7 @@
 		display: block;
 		font-size: 30rpx;
 		font-weight: bold;
-		color: #f3f8ff;
+		color: #173355;
 	}
 
 	.brand-rail {
@@ -348,7 +342,7 @@
 	.brand-rail-label {
 		display: block;
 		font-size: 22rpx;
-		color: #94adc9;
+		color: #7b8da8;
 	}
 
 	.brand-rail-value {
@@ -357,7 +351,7 @@
 		font-size: 30rpx;
 		line-height: 1.45;
 		font-weight: bold;
-		color: #f3f8ff;
+		color: #173355;
 	}
 
 	.demo-panel {
@@ -377,15 +371,15 @@
 	}
 
 	.tabs {
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: rgba(255, 255, 255, 0.58);
+		border: 1px solid rgba(255, 255, 255, 0.86);
 		margin-bottom: 22rpx;
 	}
 
 	.role-picker {
 		gap: 10rpx;
-		background: rgba(255, 255, 255, 0.03);
-		border: 1px solid rgba(255, 255, 255, 0.06);
+		background: rgba(255, 255, 255, 0.54);
+		border: 1px solid rgba(255, 255, 255, 0.82);
 		margin-bottom: 22rpx;
 	}
 
@@ -400,30 +394,31 @@
 	}
 
 	.tab {
-		color: #9ab4c9;
+		color: #6a7f9b;
 	}
 
 	.active,
 	.picker-chip-active {
-		background: linear-gradient(135deg, #ffd46b, #fff0bc);
-		color: #13202f;
+		background: linear-gradient(135deg, #0f6cbd, #3a96ff);
+		color: #ffffff;
 		font-weight: bold;
-		box-shadow: 0 14rpx 34rpx rgba(255, 212, 107, 0.18);
+		box-shadow: 0 14rpx 34rpx rgba(15, 108, 189, 0.18);
 	}
 
 	.picker-chip {
-		color: #d8e8f7;
-		background: rgba(255, 255, 255, 0.03);
+		color: #5f7390;
+		background: rgba(255, 255, 255, 0.66);
 	}
 
 	.input {
 		height: 86rpx;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: rgba(255, 255, 255, 0.72);
+		border: 1px solid rgba(255, 255, 255, 0.86);
 		border-radius: 20rpx;
 		padding: 0 22rpx;
-		color: #eaf2fb;
+		color: #173355;
 		font-size: 28rpx;
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
 	}
 
 	.btn {
@@ -438,15 +433,15 @@
 	}
 
 	.primary {
-		background: linear-gradient(135deg, #ffd46b, #fff0bc);
-		color: #13202f;
-		box-shadow: 0 18rpx 42rpx rgba(255, 212, 107, 0.2);
+		background: linear-gradient(135deg, #0f6cbd, #3a96ff);
+		color: #ffffff;
+		box-shadow: 0 18rpx 42rpx rgba(15, 108, 189, 0.2);
 	}
 
 	.secondary {
-		background: rgba(255, 255, 255, 0.05);
-		color: #f2f8ff;
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: rgba(255, 255, 255, 0.66);
+		color: #115ea3;
+		border: 1px solid rgba(255, 255, 255, 0.86);
 	}
 
 	.action-group {
@@ -477,14 +472,6 @@
 		.auth-panel {
 			padding: 28rpx;
 			border-radius: 28rpx;
-		}
-
-		.role-picker {
-			flex-wrap: wrap;
-		}
-
-		.picker-chip {
-			min-width: 220rpx;
 		}
 	}
 </style>

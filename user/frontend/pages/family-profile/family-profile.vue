@@ -7,8 +7,8 @@
 		<view class="hero-shell">
 			<view class="hero-copy">
 				<text class="eyebrow">Care Profile</text>
-				<text class="hero-title">把关键照护信息集中登记，后续方便家人持续补充</text>
-				<text class="hero-desc">首版包含视障人士基本信息、紧急联系人和药品/疾病注意事项三类表单，全部先保存到本地缓存。</text>
+				<text class="hero-title">把关键照护信息集中登记到后端</text>
+				<text class="hero-desc">首版包含视障人士基本信息、紧急联系人和药品/疾病注意事项三类表单，保存后会直接写入后端。</text>
 
 				<view class="hero-actions">
 					<button class="action-btn primary" @click="saveAll">保存登记</button>
@@ -98,9 +98,34 @@
 <script>
 	import { defineComponent } from 'vue';
 	import AppTabBar from '../../components/app-tab-bar.vue';
+	import { API_BASE } from '../../utils/api';
 	import { getAuthUser, isFamilyRole } from '../../utils/auth';
-	import { loadFamilyProfile, saveFamilyProfile } from '../../utils/family-data';
 	import { loadUserSettings } from '../../utils/user-settings';
+
+	function emptyProfile() {
+		return {
+			basicInfo: {
+				name: '',
+				gender: '',
+				age: '',
+				visionLevel: '',
+				address: '',
+				notes: ''
+			},
+			emergencyContact: {
+				name: '',
+				relation: '',
+				phone: '',
+				backupPhone: ''
+			},
+			healthInfo: {
+				medicine: '',
+				diseaseNote: '',
+				allergy: '',
+				reminder: ''
+			}
+		};
+	}
 
 	export default defineComponent({
 		components: {
@@ -109,7 +134,7 @@
 		data() {
 			return {
 				settings: loadUserSettings(),
-				profile: loadFamilyProfile()
+				profile: emptyProfile()
 			};
 		},
 		computed: {
@@ -136,7 +161,7 @@
 		},
 		onShow() {
 			this.settings = loadUserSettings();
-			this.profile = loadFamilyProfile();
+			this.loadProfile();
 		},
 		methods: {
 			ensureFamilyRole() {
@@ -151,9 +176,49 @@
 				}
 				return true;
 			},
+			loadProfile() {
+				const user = getAuthUser();
+				uni.request({
+					url: `${API_BASE}/api/family/profile`,
+					method: 'GET',
+					data: {
+						familyUserId: user.id
+					},
+					success: (res) => {
+						if (res.statusCode === 200) {
+							this.profile = res.data || emptyProfile();
+							return;
+						}
+						const data = res.data || {};
+						uni.showToast({ title: data.message || '资料加载失败', icon: 'none' });
+					},
+					fail: () => {
+						uni.showToast({ title: '资料加载失败', icon: 'none' });
+					}
+				});
+			},
 			saveAll() {
-				this.profile = saveFamilyProfile(this.profile);
-				uni.showToast({ title: '登记信息已保存', icon: 'success' });
+				const user = getAuthUser();
+				uni.request({
+					url: `${API_BASE}/api/family/profile?familyUserId=${user.id}`,
+					method: 'POST',
+					header: {
+						'Content-Type': 'application/json'
+					},
+					data: this.profile,
+					success: (res) => {
+						if (res.statusCode === 200) {
+							this.profile = res.data || this.profile;
+							uni.showToast({ title: '登记信息已保存', icon: 'success' });
+							return;
+						}
+						const data = res.data || {};
+						uni.showToast({ title: data.message || '保存失败', icon: 'none' });
+					},
+					fail: () => {
+						uni.showToast({ title: '保存失败', icon: 'none' });
+					}
+				});
 			},
 			goRecords() {
 				uni.redirectTo({
@@ -185,10 +250,11 @@
 		margin-top: 16rpx;
 		padding: 22rpx;
 		border-radius: 22rpx;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.08);
+		background: rgba(255, 255, 255, 0.74);
+		border: 1px solid rgba(255, 255, 255, 0.86);
 		color: var(--text-main);
 		font-size: 28rpx;
+		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
 	}
 
 	.input-field {
@@ -202,12 +268,6 @@
 	.textarea-field {
 		min-height: 180rpx;
 		line-height: 1.65;
-	}
-
-	.font-large .input-field,
-	.font-large .textarea-field,
-	.font-large .stat-value {
-		font-size: 34rpx;
 	}
 
 	@media screen and (max-width: 720px) {

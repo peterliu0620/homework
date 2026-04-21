@@ -15,6 +15,9 @@ import java.time.LocalDateTime;
 @Service
 public class AuthService {
 
+    public static final String ROLE_VISION = "vision";
+    public static final String ROLE_FAMILY = "family";
+
     private final SysUserMapper sysUserMapper;
     private final BCryptPasswordEncoder passwordEncoder;
 
@@ -46,10 +49,11 @@ public class AuthService {
         user.setNickname(request.getNickname().trim());
         user.setPhone(phone);
         user.setEmail(email);
+        user.setRole(normalizeRole(request.getRole()));
         user.setStatus(1);
         sysUserMapper.insert(user);
 
-        return new UserAuthResponse(user.getId(), user.getUsername(), user.getNickname());
+        return new UserAuthResponse(user.getId(), user.getUsername(), user.getNickname(), user.getRole());
     }
 
     @Transactional
@@ -59,11 +63,22 @@ public class AuthService {
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new IllegalArgumentException("用户名或密码错误");
         }
+        String requestRole = normalizeRole(request.getRole());
+        if (!requestRole.equals(user.getRole())) {
+            throw new IllegalArgumentException("账号身份不匹配");
+        }
         if (user.getStatus() == null || user.getStatus() != 1) {
             throw new IllegalArgumentException("账号已被禁用");
         }
 
         sysUserMapper.updateLastLoginAt(user.getId(), LocalDateTime.now());
-        return new UserAuthResponse(user.getId(), user.getUsername(), user.getNickname());
+        return new UserAuthResponse(user.getId(), user.getUsername(), user.getNickname(), user.getRole());
+    }
+
+    private String normalizeRole(String role) {
+        if (ROLE_FAMILY.equalsIgnoreCase(role)) {
+            return ROLE_FAMILY;
+        }
+        return ROLE_VISION;
     }
 }

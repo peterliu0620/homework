@@ -1,7 +1,7 @@
 <template>
 	<div class="login-page">
 		<div class="login-hero">
-			<div class="hero-kicker">MANAGEMENT PORTAL</div>
+			<div class="hero-kicker">管理员后台</div>
 			<h1>把后台管理做得清楚、顺手、稳定。</h1>
 			<p>
 				当前版本只保留单管理员登录，使用固定账号 <strong>admin</strong> 即可进入管理台。
@@ -10,15 +10,15 @@
 			<div class="hero-points">
 				<div class="hero-point">
 					<span class="hero-dot"></span>
-					<span>固定管理员账号，避免多套后台用户概念</span>
+					<span>统一管理应用用户、账号状态和基础资料</span>
 				</div>
 				<div class="hero-point">
 					<span class="hero-dot"></span>
-					<span>统一鉴权，接口自动携带 JWT Token</span>
+					<span>集中处理家属绑定与视障用户协同关系</span>
 				</div>
 				<div class="hero-point">
 					<span class="hero-dot"></span>
-					<span>后续可继续扩展菜单、订单、商品等模块</span>
+					<span>同步查看药品档案、共享日志和安全提醒</span>
 				</div>
 			</div>
 		</div>
@@ -26,7 +26,7 @@
 		<div class="login-panel">
 			<div class="login-card">
 				<div class="login-card-top">
-					<div class="login-badge">Admin</div>
+					<div class="login-badge">后台登录</div>
 					<h2>管理员登录</h2>
 					<p>默认账号：admin　默认密码：123456</p>
 				</div>
